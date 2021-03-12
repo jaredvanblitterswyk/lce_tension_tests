@@ -77,11 +77,7 @@ def calculateEijRot(disp_x, disp_y, dx, dy):
             U[0,1] = np.sum(e_val[0]*(e_vec[0,0]*e_vec[1,0]) + e_val[1]*e_vec[1,0]*e_vec[1,1])
             U[1,0] = np.sum(e_val[0]*(e_vec[0,0]*e_vec[1,0]) + e_val[1]*e_vec[1,0]*e_vec[1,1])
             U[1,1] = np.sum(e_val[0]*(e_vec[0,1]*e_vec[0,1]) + e_val[1]*e_vec[1,1]*e_vec[1,1])
-            '''
-            #eij = 0.5*(np.matmul(U,np.transpose(U))-I)
-            
-            #Eij['11'][i,j] = eij[0,0]; Eij['22'][i,j] = eij[1,1]; Eij['12'][i,j] = 2*eij[0,1]
-            '''
+
             # calculate inverse sqr. root
             Cnij = np.zeros((2,2))
             
@@ -119,7 +115,8 @@ def plot_field_contour_save(xx,yy,zz,vmin,vmax,cmap,level_boundaries,fpath,hide_
     # plot map
     f = plt.figure(figsize = (8,2))
     ax = f.add_subplot(1,1,1)
-    cf = ax.contourf(xx,yy,zz,level_boundaries,vmin = vmin,vmax = vmax, cmap = cmap)
+    cf = ax.contourf(xx,yy,zz,level_boundaries,vmin = vmin,vmax = vmax, 
+                     cmap = cmap)
     #ax.scatter(df['x'],df['y'],s = 1, c = df['epsilon_x']/100, cmap = custom_map, alpha = 0.2)
     ax.set_xlim([xmin,xmax])
     ax.set_ylim([ymin,ymax])
@@ -143,17 +140,81 @@ def plot_field_contour_save(xx,yy,zz,vmin,vmax,cmap,level_boundaries,fpath,hide_
     # save figure
     f.savefig(fpath, dpi=300, facecolor='w', edgecolor='w', pad_inches=0.1)
     
-def load_and_plot(file, mask_side_length, dx, dy, hide_labels, calc_strain_rot):
+def extract_load_at_images(file_path, files, col_dtypes, columns, nth_frames):
+    # import csv file
+    mts_df = pd.read_csv(os.path.join(file_path,files[0]),skiprows = 5,
+                         header = 1)
+    # set dataframe columns
+    mts_df.columns = columns
+    # drop index with units
+    mts_df = mts_df.drop(axis = 0, index = 0)
+    # set to numeric dtype
+    mts_df = mts_df.astype(col_dtypes)
+    
+    # filter based on trigger value and drop unneeded columns
+    cam_trig_df = mts_df[mts_df['trigger'] > 0].drop(['time','trigger',
+                                                      'cam_44','cam_43',
+                                                      'trig_arduino'],
+                                                     axis = 1)
+
+    # return data at every nth frame    
+    return cam_trig_df.iloc[::nth_frames,:]
+
+def interp_and_calc_strains(file, mask_side_length, dx, dy):
     # load in data
-    df = pd.read_csv(os.path.join(dir_results,file), skiprows = 5)
+    df = pd.read_csv(os.path.join(dir_gom_results,file), skiprows = 5)
     
     # transform GOM coords back to reference configuration
     X = df['x']+(Nx/2)*img_scale - df['displacement_x']
     Y = df['y']+(Ny/2)*img_scale - df['displacement_y']
       
-    # extract frame number for saving image
-    frame_no = file[35:-10]    
-    print('Processing frame:' + str(frame_no))
+    # define triangulation interpolation on x and y coordinates frm GOM
+    # in reference coordinates
+    triang = tri.Triangulation(X, Y)
+    # get mask
+    triangle_mask = mask_interp_region(triang, df, mask_side_length)
+    # apply mask
+    triang.set_mask(np.array(triangle_mask) > 0)
+    
+    # interpolate displacements to pixel coordinates
+    for var in ['displacement_x','displacement_y']:
+        dir_save_figs = os.path.join(dir_figs_root,'disp_fields')
+        interpolator = tri.LinearTriInterpolator(triang, df[var])
+        
+        # evaluate interpolator object at regular grids
+        if var == 'displacement_x':
+            ux = interpolator(xx, yy)
+        else:
+            uy = interpolator(xx, yy)
+    
+    # calculate strains and rotations from deformation gradient            
+    Eij = calculateEijRot(ux, uy, dx, dy)
+    
+    return ux, uy, Eij
+
+def calc_xsection(dir_xsection, filename, img_scale):  
+    # read in coordinates from imageJ analysis stored in csv
+    section_df = pd.read_csv(os.path.join(dir_xsection,filename), 
+                             encoding='UTF-8')
+    # drop unnecessary values
+    section_df.drop(columns = 'Value', inplace = True)
+    
+    max_y = section_df.groupby(['X']).max()
+    min_y = section_df.groupby(['X']).min()
+    
+    width = max_y - min_y
+    width_mm = width*img_scale   
+
+    return width_mm
+
+def load_and_plot(file,mask_side_length,dx,dy,hide_labels,calc_strain_rot):
+    # load in data
+    df = pd.read_csv(os.path.join(dir_gom_results,file), skiprows = 5)
+    
+    # transform GOM coords back to reference configuration
+    X = df['x']+(Nx/2)*img_scale - df['displacement_x']
+    Y = df['y']+(Ny/2)*img_scale - df['displacement_y']
+      
     # define triangulation interpolation on x and y coordinates frm GOM
     # in reference coordinates
     triang = tri.Triangulation(X, Y)
@@ -182,7 +243,7 @@ def load_and_plot(file, mask_side_length, dx, dy, hide_labels, calc_strain_rot):
                 var_fname = 'uy'
                 uy = interpolator(xx, yy)
                     
-        Eij = calculateEijRot(ux,uy, img_scale, img_scale)
+        Eij = calculateEijRot(ux,uy, dx, dy)
         
         # loop through and plot each strain component
         for strain_component in ['11','22','12']:
@@ -194,7 +255,7 @@ def load_and_plot(file, mask_side_length, dx, dy, hide_labels, calc_strain_rot):
                 vmin, vmax = -0.5, 1
             
             # define contour map level boundaries
-            level_boundaries = np.linspace(vmin,vmax,levels+1)
+            level_boundaries = np.linspace(vmin,vmax,cbar_levels+1)
             
             #define variable to plot - interpolated to deformed coordinates
             zz = Eij[strain_component]
@@ -246,55 +307,26 @@ def load_and_plot(file, mask_side_length, dx, dy, hide_labels, calc_strain_rot):
             plot_field_contour_save(xx,yy,zz,vmin,vmax,custom_map,fpath,hide_labels)
     
 #%% ---- MAIN SCRIPT ----
-dir_results = 'Z:/Experiments/lce_tension/lcei_001/007_t01_r01/gom_results'
-
-files = [f for f in os.listdir(dir_results) if f.endswith('.csv')]
-spec_id = 'lcei_001_007_t01_r00'
-avg_shear_strain = []
-'''
-for i in range(0,len(files)):
-    df = pd.read_csv(os.path.join(dir_results,files[i]), skiprows = 5)
-    avg_shear_strain.append(df['epsilon_x'].mean())
-'''
-img_scale = 0.0106 # mm/pix
-    
-# range of corrdinates to consider for plotting
-xmin,xmax = 0, 26
-ymin, ymax = 8, 12
-
-# number of pixels in x and y dimensions 
-Nx = 2448
-Ny = 2048
-
-img_scale = 0.0106
-
-# create vector of x dimensions
-x_vec = np.linspace(0,Nx-1,Nx)*img_scale # vector of original x coordinates (pixels)
-y_vec = np.linspace(Ny-1,0,Ny)*img_scale # vector of original y coordinates (pixels)
-
-xx,yy = np.meshgrid(x_vec,y_vec)
-
-# calculate scaled spacing between points in field
-dx = img_scale
-dy = img_scale
-
-# colorbar levels
-levels = 25
-
-# load in colormap
-cm_data = np.loadtxt("Z:/Python/mpl_styles/lajolla.txt")
-custom_map = LinearSegmentedColormap.from_list('custom', cm_data)
-
-# max side length of triangles in DeLauny triangulation 
-mask_side_length = 0.5
-
 # ----- configure directories -----
+# root directory
+dir_root = 'Z:/Experiments/lce_tension'
+# extensions to access sub-directories
+batch_ext = 'lcei_001'
+mts_ext = 'mts_data'
+sample_ext = '007_t01_r00'
+gom_ext = 'gom_results'
+
+# define full paths to mts and gom data
+dir_xsection = os.path.join(dir_root,batch_ext,sample_ext)
+dir_mts = os.path.join(dir_root,batch_ext,mts_ext,batch_ext+'_'+sample_ext)
+dir_gom_results = os.path.join(dir_root,batch_ext,sample_ext,gom_ext)
+
 # check if figures folder exists, if not, make directory
-if not os.path.exists(os.path.join(dir_results,'figures')):
-    os.makedirs(os.path.join(dir_results,'figures'))
+if not os.path.exists(os.path.join(dir_gom_results,'figures')):
+    os.makedirs(os.path.join(dir_gom_results,'figures'))
 
 # define directory where figures to be saved    
-dir_figs_root = os.path.join(dir_results,'figures')
+dir_figs_root = os.path.join(dir_gom_results,'figures')
 
 if not os.path.exists(os.path.join(dir_figs_root,'disp_fields')):
     os.makedirs(os.path.join(dir_figs_root,'disp_fields'))
@@ -302,10 +334,98 @@ if not os.path.exists(os.path.join(dir_figs_root,'disp_fields')):
 if not os.path.exists(os.path.join(dir_figs_root,'strain_fields')):
     os.makedirs(os.path.join(dir_figs_root,'strain_fields'))
 
-# ---- run processing -----    
-for i in range(12,13):
-    load_and_plot(files[i], mask_side_length, dx, dy, hide_labels = False, calc_strain_rot = True)
+# ----- define constants -----
+spec_id = batch_ext+'_'+sample_ext # full specimen id
+Nx, Ny = 2448, 2048 # pixel resolution in x, y axis
+img_scale = 0.0106 # mm/pix
+t = 1.6 # thickness of sample [mm]
+cmap_name = 'lajolla' # custom colormap stored in mpl_styles
+xsection_filename = batch_ext+'_'+sample_ext+'_section_coords.csv'
+xmin,xmax = 0, 26 # xlims plot field
+ymin, ymax = 8, 12 # ylims plot field
+mask_side_length = 0.5 # max side length of triangles in DeLauny triangulation
+cbar_levels = 25 # colorbar levels
+nth_frames = 5 # sub sampling images where correlation data is available
+mts_columns = ['time', 'crosshead', 'load', 'trigger', 'cam_44', 'cam_43', 'trig_arduino']
+mts_col_dtypes = {'time':'float',
+              'crosshead':'float', 
+              'load':'float',
+              'trigger': 'int64',
+              'cam_44': 'int64',
+              'cam_43': 'int64',
+              'trig_arduino': 'int64'}
 
+# ---- calculate quantities and collect files to process ---
+# collect all csv files in gom results directory
+files_gom = [f for f in os.listdir(dir_gom_results) if f.endswith('.csv')]
+# collect mts data file
+files_mts = [f for f in os.listdir(dir_mts) if f.endswith('.csv')]
+
+# create vector of x dimensions
+x_vec = np.linspace(0,Nx-1,Nx) # vector - original x coords (pix)
+y_vec = np.linspace(Ny-1,0,Ny) # vector - original y coords (pix)
+
+xx_pix,yy_pix = np.meshgrid(x_vec,y_vec) # matrix of x and y coordinates (pix)
+xx,yy = xx_pix*img_scale, yy_pix*img_scale # matrix of x and y coordinates (mm)
+
+# calculate scaled spacing between points in field
+dx, dy = img_scale, img_scale
+
+# calculate width of specimen at each pixel location
+width_mm = calc_xsection(dir_xsection, xsection_filename, img_scale)
+
+# load in colormap
+cm_data = np.loadtxt('Z:/Python/mpl_styles/'+cmap_name+'.txt')
+custom_map = LinearSegmentedColormap.from_list('custom', cm_data)
+
+mts_df = extract_load_at_images(dir_mts, files_mts, mts_col_dtypes, 
+                                mts_columns, nth_frames)
+
+# reset index
+mts_df = mts_df.reset_index(drop=True)
+
+# assemble results dataframe
+coords_df = pd.DataFrame()
+coords_df['x_pix'] = np.reshape(xx_pix,(Nx*Ny,))
+coords_df['y_pix'] = np.reshape(yy_pix,(Nx*Ny,))
+
+#%%
+# ---- run processing -----  
+ 
+for i in range(0,len(files_gom)):
+    # extract frame number and display
+    frame_no = files_gom[i][35:-10]    
+    print('Processing frame:' + str(frame_no))
+    
+    # compute interpolated strains and displacements in reference coordinates
+    ux, uy, Eij = interp_and_calc_strains(files_gom[i], mask_side_length, dx, dy)
+    
+    # assemble results in data frame
+    outputs_df = pd.DataFrame()
+    outputs_df['ux'] = np.reshape(ux,(Nx*Ny,))
+    outputs_df['uy'] = np.reshape(uy,(Nx*Ny,))
+    outputs_df['Exx'] = np.reshape(Eij['11'],(Nx*Ny,))
+    outputs_df['Eyy'] = np.reshape(Eij['22'],(Nx*Ny,))
+    outputs_df['Exy'] = np.reshape(Eij['12'],(Nx*Ny,))
+    
+    # ----- compile results into dataframe -----
+    # concatenate to create one output dataframe
+    results_df = pd.concat([coords_df,outputs_df],axis = 1, join = 'inner')
+    # drop points with nans
+    results_df = results_df.dropna(axis=0, how = 'any')
+    # assign cross-section width based on pixel location
+    results_df['width_mm'] = results_df['x_pix']
+    results_df['width_mm'] = results_df['width_mm'].apply(lambda x: width_mm.loc[x][0] if x in width_mm.index else np.nan)
+    # assign cross-section area
+    results_df['area_mm2'] = results_df['width_mm'].apply(lambda x: x*t)
+    # assign width-averaged stress
+    results_df['stress_mpa'] = mts_df.iloc[int(frame_no),1]/results_df['area_mm2']
+    
+    # drop rows with no cross-section listed
+    results_df = results_df.dropna(axis=0, how = 'any')
+    
+    save_filename = 'results_df_frame_'+str(frame_no)+'.pkl'
+    results_df.to_pickle(os.path.join(dir_gom_results,save_filename))
 #%% ===== DEBUGGING CODE =====
 '''
 good_triangle = []
