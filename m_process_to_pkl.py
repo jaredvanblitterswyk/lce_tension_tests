@@ -176,6 +176,15 @@ def interp_and_calc_strains(file, mask_side_length, dx, dy):
     # apply mask
     triang.set_mask(np.array(triangle_mask) > 0)
     
+    # mask zero area triangles
+    xy = np.dstack((triang.x[triang.triangles], triang.y[triang.triangles]))  # shape (ntri,3,2)
+    twice_area = np.cross(xy[:,1,:] - xy[:,0,:], xy[:,2,:] - xy[:,0,:])  # shape (ntri)
+    mask = twice_area < 1e-10  # shape (ntri)
+    
+    if np.any(mask):
+        print('zero area.')
+        triang.set_mask(mask)
+    
     # interpolate displacements to pixel coordinates
     for var in ['displacement_x','displacement_y']:
         dir_save_figs = os.path.join(dir_figs_root,'disp_fields')
@@ -222,6 +231,14 @@ def load_and_plot(file,mask_side_length,dx,dy,hide_labels,calc_strain_rot):
     triangle_mask = mask_interp_region(triang, df, mask_side_length)
     # apply mask
     triang.set_mask(np.array(triangle_mask) > 0)
+    
+    xy = np.dstack((triang.x[triang.triangles], triang.y[triang.triangles]))  # shape (ntri,3,2)
+    twice_area = np.cross(xy[:,1,:] - xy[:,0,:], xy[:,2,:] - xy[:,0,:])  # shape (ntri)
+    mask = twice_area < 1e-10  # shape (ntri)
+    
+    if np.any(mask):
+        print('zero area.')
+        triang.set_mask(mask)
        
     # determine if strains to be calculated manually or not
     if calc_strain_rot:
@@ -313,7 +330,7 @@ dir_root = 'Z:/Experiments/lce_tension'
 # extensions to access sub-directories
 batch_ext = 'lcei_001'
 mts_ext = 'mts_data'
-sample_ext = '007_t01_r00'
+sample_ext = '006_t02_r00'
 gom_ext = 'gom_results'
 
 # define full paths to mts and gom data
@@ -337,7 +354,7 @@ if not os.path.exists(os.path.join(dir_figs_root,'strain_fields')):
 # ----- define constants -----
 spec_id = batch_ext+'_'+sample_ext # full specimen id
 Nx, Ny = 2448, 2048 # pixel resolution in x, y axis
-img_scale = 0.0106 # mm/pix
+img_scale = 0.0187 # mm/pix
 t = 1.6 # thickness of sample [mm]
 cmap_name = 'lajolla' # custom colormap stored in mpl_styles
 xsection_filename = batch_ext+'_'+sample_ext+'_section_coords.csv'
@@ -394,7 +411,7 @@ coords_df['y_pix'] = np.reshape(yy_pix,(Nx*Ny,))
  
 for i in range(0,len(files_gom)):
     # extract frame number and display
-    frame_no = files_gom[i][35:-10]    
+    frame_no = files_gom[i][28:-10]    
     print('Processing frame:' + str(frame_no))
     
     # compute interpolated strains and displacements in reference coordinates
