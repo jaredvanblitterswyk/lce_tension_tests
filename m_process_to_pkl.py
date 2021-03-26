@@ -9,22 +9,44 @@ import sys
 import csv
 import pandas as pd
 import numpy as np
-from numpy import linalg
+from numpy import linalg as LA
 import matplotlib as mpl
 import matplotlib.pyplot as plt
 from matplotlib.colors import LinearSegmentedColormap
 import matplotlib.font_manager as font_manager
 from mpl_toolkits.axes_grid1 import make_axes_locatable
 from scipy.interpolate import interp2d, griddata
-from scipy.linalg import sqrtm
 import matplotlib.tri as tri
-import numpy.ma as ma
+import math as m
 
 # -- TO DO: would need to reformat m_process_dic_fields_btb_imaging
 # currently not setup up properly for importing functions as a package
 
 #sys.path.insert(0, 'Z:/Python/image_processing_shear_tests/')
 #from m_process_dic_fields_btb_imaging import calculateEij
+
+def compute_R(F):
+    # compute rotation matrix iteratively using technique presented in:
+    # http://www.continuummechanics.org/polardecomposition.html
+    
+    # compute transpose of inverse
+    Fti = LA.inv(F.T)
+    
+    # compute norm of matrix - iterative way of computing R instead of matrix 
+    # sqrt calc
+    Ao = np.zeros((F.shape[0],F.shape[1]))
+    An = 0.5*(F + Fti)
+    # define the difference between matrices using the normalized distance
+    res = LA.norm(An - Ao)
+    
+    threshold = 0.01
+    while res > threshold:
+        Ao = An
+        Ati = LA.inv(Ao.T)
+        An = 0.5*(Ao + Ati)
+        res = LA.norm(An - Ao)
+        
+    return An
     
 def calculateEijRot(disp_x, disp_y, dx, dy):
 
@@ -58,40 +80,22 @@ def calculateEijRot(disp_x, disp_y, dx, dy):
             #C = np.matmul(np.transpose(Fij),Fij)
 
             # calculate Lagrange strains
-            Eij['11'][i,j] = eij[0,0]; Eij['22'][i,j] = eij[1,1]; Eij['12'][i,j] = 2*eij[0,1]
+            Eij['11'][i,j] = eij[0,0]; Eij['22'][i,j] = eij[1,1]; Eij['12'][i,j] = eij[0,1]
             
-            # calculate eigenvalues and normalized eigenvectors
-            #mask_nan = C == np.nan
-            #C[mask_nan] = 0
+            R = compute_R(Fij)
+                        
+            # compute rotation matrix - limit to 1, -1
+            if R[0,0] > 1:
+                R[0,0] = 1
+            elif R[0,0] < -1:
+                R[0,0] = -1
+                
+            Rij[i,j] = np.arccos(R[0,0])*180/m.pi
             
-            #U = sqrtm(C)
-            '''
-            eig = np.linalg.eig(C)
-            e_val = eig[0]
-            e_vec = eig[1]
-            
-            U = np.zeros((2,2))
-            
-            # calculate right stretch tensor
-            U[0,0] = np.sum(e_val[0]*(e_vec[0,0]*e_vec[0,0]) + e_val[1]*e_vec[0,1]*e_vec[0,1])
-            U[0,1] = np.sum(e_val[0]*(e_vec[0,0]*e_vec[1,0]) + e_val[1]*e_vec[1,0]*e_vec[1,1])
-            U[1,0] = np.sum(e_val[0]*(e_vec[0,0]*e_vec[1,0]) + e_val[1]*e_vec[1,0]*e_vec[1,1])
-            U[1,1] = np.sum(e_val[0]*(e_vec[0,1]*e_vec[0,1]) + e_val[1]*e_vec[1,1]*e_vec[1,1])
-
-            # calculate inverse sqr. root
-            Cnij = np.zeros((2,2))
-            
-            Cnij[0,0] = np.sum(1/e_val[0]*(e_vec[0,0]*e_vece_vec[0,0]) + 1/e_val[1]*e_vec[0,1]*e_vec[0,1])
-            Cnij[0,1] = np.sum(1/e_val[0]*(e_vec[0,0]*e_vece_vec[1,0]) + 1/e_val[1]*e_vec[1,0]*e_vec[1,1])
-            Cnij[1,0] = np.sum(1/e_val[0]*(e_vec[0,0]*e_vece_vec[1,0]) + 1/e_val[1]*e_vec[1,0]*e_vec[1,1])
-            Cnij[1,1] = np.sum(1/e_val[0]*(e_vec[0,1]*e_vece_vec[0,1]) + 1/e_val[1]*e_vec[1,1]*e_vec[1,1])
-            
-            # compute rotation matrix
-            Rij[i,j] = np.matmul(Fij,Cnij)[0,0]
-            '''
-    return Eij#, Rij
+    return Eij, Rij
 
 def mask_interp_region(triang, df, mask_side_len = 0.2):
+    
     triangle_mask = []
     tr = triang.triangles
     for row in range(tr.shape[0]):
@@ -110,35 +114,6 @@ def mask_interp_region(triang, df, mask_side_len = 0.2):
             triangle_mask.append(1)
             
     return triangle_mask
-
-def plot_field_contour_save(xx,yy,zz,vmin,vmax,cmap,level_boundaries,fpath,hide_labels):
-    # plot map
-    f = plt.figure(figsize = (8,2))
-    ax = f.add_subplot(1,1,1)
-    cf = ax.contourf(xx,yy,zz,level_boundaries,vmin = vmin,vmax = vmax, 
-                     cmap = cmap)
-    #ax.scatter(df['x'],df['y'],s = 1, c = df['epsilon_x']/100, cmap = custom_map, alpha = 0.2)
-    ax.set_xlim([xmin,xmax])
-    ax.set_ylim([ymin,ymax])
-    ax.grid(True)
-    cbar = f.colorbar(cf)
-
-    # show grid but hide labels
-    if hide_labels:
-        ax.xaxis.set_ticklabels([])
-        ax.xaxis.set_ticks_position('none')
-        ax.yaxis.set_ticklabels([])
-        ax.yaxis.set_ticks_position('none')    
-    else:
-        ax.set_xlabel('x (mm)')
-        ax.set_ylabel('y (mm)')
-        
-    plt.tight_layout()  
-    # plt.show()
-    plt.ioff() # turn off interactive mode
-    
-    # save figure
-    f.savefig(fpath, dpi=300, facecolor='w', edgecolor='w', pad_inches=0.1)
     
 def extract_load_at_images(file_path, files, col_dtypes, columns, nth_frames):
     # import csv file
@@ -187,7 +162,7 @@ def interp_and_calc_strains(file, mask_side_length, dx, dy):
     
     # interpolate displacements to pixel coordinates
     for var in ['displacement_x','displacement_y']:
-        dir_save_figs = os.path.join(dir_figs_root,'disp_fields')
+    
         interpolator = tri.LinearTriInterpolator(triang, df[var])
         
         # evaluate interpolator object at regular grids
@@ -197,9 +172,9 @@ def interp_and_calc_strains(file, mask_side_length, dx, dy):
             uy = interpolator(xx, yy)
     
     # calculate strains and rotations from deformation gradient            
-    Eij = calculateEijRot(ux, uy, dx, dy)
+    Eij, Rij = calculateEijRot(ux, uy, dx, dy)
     
-    return ux, uy, Eij
+    return ux, uy, Eij, Rij
 
 def calc_xsection(dir_xsection, filename, img_scale):  
     # read in coordinates from imageJ analysis stored in csv
@@ -215,113 +190,6 @@ def calc_xsection(dir_xsection, filename, img_scale):
     width_mm = width*img_scale   
 
     return width_mm
-
-def load_and_plot(file,mask_side_length,dx,dy,hide_labels,calc_strain_rot):
-    # load in data
-    df = pd.read_csv(os.path.join(dir_gom_results,file), skiprows = 5)
-    
-    # transform GOM coords back to reference configuration
-    X = df['x']+(Nx/2)*img_scale - df['displacement_x']
-    Y = df['y']+(Ny/2)*img_scale - df['displacement_y']
-      
-    # define triangulation interpolation on x and y coordinates frm GOM
-    # in reference coordinates
-    triang = tri.Triangulation(X, Y)
-    # get mask
-    triangle_mask = mask_interp_region(triang, df, mask_side_length)
-    # apply mask
-    triang.set_mask(np.array(triangle_mask) > 0)
-    
-    xy = np.dstack((triang.x[triang.triangles], triang.y[triang.triangles]))  # shape (ntri,3,2)
-    twice_area = np.cross(xy[:,1,:] - xy[:,0,:], xy[:,2,:] - xy[:,0,:])  # shape (ntri)
-    mask = twice_area < 1e-10  # shape (ntri)
-    
-    if np.any(mask):
-        print('zero area.')
-        triang.set_mask(mask)
-       
-    # determine if strains to be calculated manually or not
-    if calc_strain_rot:
-        
-        # TO DO: add plotting functionality for displacements
-        # alternate approach: have one script to read in and process ux, uy
-        # and another to handle strains (calculated or extracted from gom)
-        for var in ['displacement_x','displacement_y']:
-            dir_save_figs = os.path.join(dir_figs_root,'disp_fields')
-            interpolator = tri.LinearTriInterpolator(triang, df[var])
-            
-            # evaluate interpolator object at regular grids
-            if var == 'displacement_x':
-                vmin, vmax = 0, 21
-                var_fname = 'ux'
-                ux = interpolator(xx, yy)
-            else:
-                vmin, vmax = -1.2, 0
-                var_fname = 'uy'
-                uy = interpolator(xx, yy)
-                    
-        Eij = calculateEijRot(ux,uy, dx, dy)
-        
-        # loop through and plot each strain component
-        for strain_component in ['11','22','12']:
-            if strain_component == '11':
-                vmin, vmax = 0, 4.5
-            elif strain_component == '22':
-                vmin, vmax = -0.4, 0
-            else:
-                vmin, vmax = -0.5, 1
-            
-            # define contour map level boundaries
-            level_boundaries = np.linspace(vmin,vmax,cbar_levels+1)
-            
-            #define variable to plot - interpolated to deformed coordinates
-            zz = Eij[strain_component]
-            
-            # specify variable name
-            var_fname = 'E'+strain_component+'_calc'
-            # define directory to save to
-            dir_save_figs = os.path.join(dir_figs_root,'strain_fields')
-            # define full image path
-            fpath = dir_save_figs+'/'+spec_id+'_'+var_fname+'_'+frame_no+'.tiff'
-            # generate figure
-            plot_field_contour_save(xx+ux,yy+uy,zz,vmin,vmax,custom_map,level_boundaries,fpath,hide_labels)
-        
-    else:
-        for var in ['displacement_x','displacement_y','epsilon_x','epsilon_y','epsilon_xy']:  
-            # define masked interpolator object
-            if var in ['epsilon_x','epsilon_y']:
-                dir_save_figs = os.path.join(dir_figs_root,'strain_fields')
-                interpolator = tri.LinearTriInterpolator(triang, df[var]/100)
-                if var == 'epsilon_x':
-                    vmin, vmax = 0, 4.5
-                    var_fname = 'Exx'
-                else:
-                    vmin, vmax = -0.4, 0
-                    var_fname = 'Eyy'
-            elif var in ['epsilon_xy']:
-                dir_save_figs = os.path.join(dir_figs_root,'strain_fields')
-                interpolator = tri.LinearTriInterpolator(triang, df[var]*2)
-                vmin, vmax = -0.5, 1
-                var_fname = 'Exy'
-            else:
-                dir_save_figs = os.path.join(dir_figs_root,'disp_fields')
-                interpolator = tri.LinearTriInterpolator(triang, df[var])
-                if var == 'displacement_x':
-                    vmin, vmax = 0, 21
-                    var_fname = 'ux'
-                else:
-                    vmin, vmax = -1.2, 0
-                    var_fname = 'uy'
-            
-            # define contour map level boundaries
-            level_boundaries = np.linspace(vmin,vmax,levels+1)
-            # evaluate interpolator object at regular grids
-            zz = interpolator(xx, yy)
-            # define full image path
-            fpath = dir_save_figs+'/'+spec_id+'_'+var_fname+'_'+frame_no+'.tiff'
-            
-            # generate figure
-            plot_field_contour_save(xx,yy,zz,vmin,vmax,custom_map,fpath,hide_labels)
     
 #%% ---- MAIN SCRIPT ----
 # ----- configure directories -----
@@ -330,7 +198,7 @@ dir_root = 'Z:/Experiments/lce_tension'
 # extensions to access sub-directories
 batch_ext = 'lcei_001'
 mts_ext = 'mts_data'
-sample_ext = '006_t02_r00'
+sample_ext = '007_t01_r00'
 gom_ext = 'gom_results'
 
 # define full paths to mts and gom data
@@ -338,28 +206,13 @@ dir_xsection = os.path.join(dir_root,batch_ext,sample_ext)
 dir_mts = os.path.join(dir_root,batch_ext,mts_ext,batch_ext+'_'+sample_ext)
 dir_gom_results = os.path.join(dir_root,batch_ext,sample_ext,gom_ext)
 
-# check if figures folder exists, if not, make directory
-if not os.path.exists(os.path.join(dir_gom_results,'figures')):
-    os.makedirs(os.path.join(dir_gom_results,'figures'))
-
-# define directory where figures to be saved    
-dir_figs_root = os.path.join(dir_gom_results,'figures')
-
-if not os.path.exists(os.path.join(dir_figs_root,'disp_fields')):
-    os.makedirs(os.path.join(dir_figs_root,'disp_fields'))
-    
-if not os.path.exists(os.path.join(dir_figs_root,'strain_fields')):
-    os.makedirs(os.path.join(dir_figs_root,'strain_fields'))
-
 # ----- define constants -----
 spec_id = batch_ext+'_'+sample_ext # full specimen id
 Nx, Ny = 2448, 2048 # pixel resolution in x, y axis
-img_scale = 0.0187 # mm/pix
+img_scale = 0.0106 # mm/pix
 t = 1.6 # thickness of sample [mm]
 cmap_name = 'lajolla' # custom colormap stored in mpl_styles
 xsection_filename = batch_ext+'_'+sample_ext+'_section_coords.csv'
-xmin,xmax = 0, 26 # xlims plot field
-ymin, ymax = 8, 12 # ylims plot field
 mask_side_length = 0.5 # max side length of triangles in DeLauny triangulation
 cbar_levels = 25 # colorbar levels
 nth_frames = 5 # sub sampling images where correlation data is available
@@ -406,16 +259,24 @@ coords_df = pd.DataFrame()
 coords_df['x_pix'] = np.reshape(xx_pix,(Nx*Ny,))
 coords_df['y_pix'] = np.reshape(yy_pix,(Nx*Ny,))
 
+def plot_rotation_field(x,y,Rij, frame_no):
+    plt.figure(figsize = (2,3))
+    plt.scatter(x, y, s = 1, c = Rij)
+    plt.colorbar()
+    plt.title('Frame no.: '+str(frame_no))
+    plt.xlabel('x (pix)')
+    plt.ylabel('y (pix)')
 #%%
 # ---- run processing -----  
  
 for i in range(0,len(files_gom)):
     # extract frame number and display
-    frame_no = files_gom[i][28:-10]    
+    #frame_no = files_gom[i][28:-10] # lcei_001_006_t02_r00
+    frame_no = files_gom[i][35:-10] 
     print('Processing frame:' + str(frame_no))
     
     # compute interpolated strains and displacements in reference coordinates
-    ux, uy, Eij = interp_and_calc_strains(files_gom[i], mask_side_length, dx, dy)
+    ux, uy, Eij, Rij = interp_and_calc_strains(files_gom[i], mask_side_length, dx, dy)
     
     # assemble results in data frame
     outputs_df = pd.DataFrame()
@@ -424,6 +285,7 @@ for i in range(0,len(files_gom)):
     outputs_df['Exx'] = np.reshape(Eij['11'],(Nx*Ny,))
     outputs_df['Eyy'] = np.reshape(Eij['22'],(Nx*Ny,))
     outputs_df['Exy'] = np.reshape(Eij['12'],(Nx*Ny,))
+    outputs_df['R'] = np.reshape(Rij,(Nx*Ny,))
     
     # ----- compile results into dataframe -----
     # concatenate to create one output dataframe
@@ -443,6 +305,8 @@ for i in range(0,len(files_gom)):
     
     save_filename = 'results_df_frame_'+str(frame_no)+'.pkl'
     results_df.to_pickle(os.path.join(dir_gom_results,save_filename))
+    
+    #plot_rotation_field(xx_pix,yy_pix,Rij,frame_no)
 #%% ===== DEBUGGING CODE =====
 '''
 good_triangle = []
