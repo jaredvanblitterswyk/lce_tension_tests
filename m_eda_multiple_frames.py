@@ -35,12 +35,12 @@ dir_root = 'Z:/Experiments/lce_tension'
 # extensions to access sub-directories
 batch_ext = 'lcei_001'
 mts_ext = 'mts_data'
-sample_ext = '006_t02_r00'
+sample_ext = '002_t02_r00'
 gom_ext = 'gom_results'
 cmap_name = 'lajolla' # custom colormap stored in mpl_styles
 
 # load single frames flag
-load_multiple_frames = False
+load_multiple_frames = True
 
 # load in colormap
 cm_data = np.loadtxt('Z:/Python/mpl_styles/'+cmap_name+'.txt')
@@ -51,17 +51,17 @@ dir_xsection = os.path.join(dir_root,batch_ext,sample_ext)
 dir_mts = os.path.join(dir_root,batch_ext,mts_ext,batch_ext+'_'+sample_ext)
 dir_gom_results = os.path.join(dir_root,batch_ext,sample_ext,gom_ext)
 
-img_scale = 0.0187 # image scale (mm/pix)
+img_scale = 0.253 # image scale (mm/pix)
 if load_multiple_frames:
-    for i in range(0,46):
+    for i in range(1,50):
         print('Adding frame: '+str(i))
-        save_filename = 'results_df_frame_'+str(i)+'.pkl'
+        save_filename = 'results_df_frame_' + '{:02d}'.format(i) + '.pkl'
         frame_df = pd.read_pickle(os.path.join(dir_gom_results,save_filename))
         
         # add time stamp to frame to allow for sorting later
         frame_df['frame'] = i*np.ones((frame_df.shape[0],))
         
-        if i == 0:
+        if i == 1:
             # create empty data frame to store all values from each frame
             all_frames_df = pd.DataFrame(columns = frame_df.columns)
         
@@ -97,6 +97,10 @@ n_bins = 20
 frame_range = len(
     [f for f in os.listdir(dir_gom_results) if f.endswith('.pkl')]
     )
+
+# set frame range manually
+frame_range = 38
+
 num_img_x = 6
 num_img_y = int(round((frame_range)/num_img_x,0))
 
@@ -111,10 +115,14 @@ data_exx = []
 data_eyy = []
 data_exy = []
 
+var_to_plot = 'Exy'
+
 # loop through range of frames and generate histogram and box plots
-for i in range(1,frame_range):
-    row = int(i/(num_img_x+0.1))
-    col = i - row*(num_img_x) - 1
+plot_num = 0
+
+for i in range(2,frame_range):
+    row = int(plot_num/(num_img_x))
+    col = plot_num - row*(num_img_x)
     #print(str(row)+', '+str(col)) # check index logic
     
     # create dataframe for current frame
@@ -134,14 +142,19 @@ for i in range(1,frame_range):
     
     # We can set the number of bins with the `bins` kwarg
     axs[row,col].hist(
-        single_frame_df['Exx'], 
+        single_frame_df[var_to_plot], 
         edgecolor='#262C47', color = '#4E598D', 
         bins = n_bins, linewidth = 0.5
         )
     axs[row,col].set_title('Frame: '+ str(i), fontsize = 5)
-    axs[row,col].set_xlabel('Exx', fontsize = 5)
+    axs[row,col].set_xlabel(var_to_plot, fontsize = 5)
     axs[row,col].grid(True, alpha = 0.5)
-    axs[row,col].set_xlim([0,1.05*single_frame_df['Exx'].max()])
+    axs[row,col].set_xlim(
+        [1.05*single_frame_df[var_to_plot].min(),
+         1.05*single_frame_df[var_to_plot].max()
+         ]
+        )
+    #axs[row,col].set_xlim([0,1.05*single_frame_df['Eyy'].max()])
     axs[row,col].tick_params(labelsize = 5)
     
     # extract ylims of plot for annotations
@@ -149,17 +162,20 @@ for i in range(1,frame_range):
     
     # add line showning mean of field at each frame
     if load_multiple_frames:
+        avg_strain = all_frames_df[
+            all_frames_df['frame'] == i
+            ][var_to_plot].mean()
         axs[row,col].axvline(
-            agg_frame_df.loc[i,'Exx'],
+            avg_strain,
             color='k', linestyle='dashed', linewidth=0.4, marker = ''
             )
         axs[row,col].text(
-            agg_frame_df.loc[i,'Exx']*1.1, max_ylim*0.8, 
-            'Mean: {:.2f}'.format(agg_frame_df.loc[i,'Exx']), fontsize = 4
+            avg_strain*1.1, max_ylim*0.8, 
+            'Mean: {:.2f}'.format(avg_strain), fontsize = 4
             ) 
     else:
         #calculate average strain
-        avg_strain = single_frame_df['Exx'].mean()
+        avg_strain = single_frame_df[var_to_plot].mean()
         axs[row,col].axvline(
             avg_strain, 
             color='k', linestyle='dashed', linewidth=0.4, marker = ''
@@ -177,8 +193,11 @@ for i in range(1,frame_range):
 
     # if loading each file individually, delete after use
     del single_frame_df
+    plot_num += 1
+    
 plt.show()
 
+#%% ----- Generate Box Plots -----
 # if loading all frames at once, aggregate strain data into list for plotting
 if load_multiple_frames: 
     frame_labels = all_frames_df['frame'].unique().astype(int).astype(str)
