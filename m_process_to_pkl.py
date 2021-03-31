@@ -10,6 +10,7 @@ import csv
 import pandas as pd
 import numpy as np
 from numpy import linalg as LA
+from scipy import linalg
 import matplotlib as mpl
 import matplotlib.pyplot as plt
 from matplotlib.colors import LinearSegmentedColormap
@@ -62,6 +63,8 @@ def calculateEijRot(disp_x, disp_y, dx, dy):
     
     Eij = {'11': np.zeros((row,col)),'22': np.zeros((row,col)), '12': np.zeros((row,col))}
     Rij = np.zeros((row,col))
+    Reig = np.zeros((row,col))
+    stretch_p1 = np.zeros((row,col))
       
     for i in range(0,row):
         for j in range(0,col):
@@ -76,7 +79,8 @@ def calculateEijRot(disp_x, disp_y, dx, dy):
             
             Fij += I
             
-            eij = 0.5*(np.matmul(np.transpose(Fij),Fij)-I)
+            C = np.matmul(np.transpose(Fij),Fij)
+            eij = 0.5*(C-I)
             #C = np.matmul(np.transpose(Fij),Fij)
 
             # calculate Lagrange strains
@@ -92,13 +96,25 @@ def calculateEijRot(disp_x, disp_y, dx, dy):
                 
             Rij[i,j] = np.arccos(R[0,0])*180/m.pi
             
-    return Eij, Rij
+            if np.isnan(np.sum(C)):
+                stretch_p1[i,j] = np.nan
+                Reig[i,j] = np.nan
+            else:
+                # compute eigenvalues and eigenvectors of stretch tensor
+                eig_vec_val = linalg.eig(C, left=False, right=True)
+                eigen = eig_vec_val[1][:,0]
+                stretch_p1[i,j] = eig_vec_val[0][0]
+                
+                # compute magnitude of principal eigenvector
+                Reig[i,j] = np.arccos(np.real(eigen[0]))*180/m.pi
+            
+    return Eij, Rij, Reig, stretch_p1
 
 def mask_interp_region(triang, df, mask_side_len = 0.2):
-    
     triangle_mask = []
     tr = triang.triangles
     for row in range(tr.shape[0]):
+
         x1, x2, x3 = df['x'][tr[row,0]], df['x'][tr[row,1]], df['x'][tr[row,2]]
         y1, y2, y3 = df['y'][tr[row,0]], df['y'][tr[row,1]], df['y'][tr[row,2]]
         
@@ -113,7 +129,16 @@ def mask_interp_region(triang, df, mask_side_len = 0.2):
         else: 
             triangle_mask.append(1)
             
-    return triangle_mask
+    # mask zero area triangles
+    xy = np.dstack((triang.x[triang.triangles], triang.y[triang.triangles]))  # shape (ntri,3,2)
+    twice_area = np.cross(xy[:,1,:] - xy[:,0,:], xy[:,2,:] - xy[:,0,:])  # shape (ntri)
+    area_mask = twice_area < 1e-3  # shape (ntri)
+    area_mask = area_mask.astype(int)
+               
+    mask = np.maximum.reduce([np.array(triangle_mask),area_mask])
+    #mask = triangle_mask
+            
+    return mask, area_mask
     
 def extract_load_at_images(file_path, files, col_dtypes, columns, nth_frames):
     # import csv file
@@ -139,6 +164,8 @@ def interp_and_calc_strains(file, mask_side_length, dx, dy):
     # load in data
     df = pd.read_csv(os.path.join(dir_gom_results,file), skiprows = 5)
     
+    df = df.dropna(axis = 0)
+    df = df.reset_index(drop=True)
     # transform GOM coords back to reference configuration
     X = df['x']+(Nx/2)*img_scale - df['displacement_x']
     Y = df['y']+(Ny/2)*img_scale - df['displacement_y']
@@ -147,19 +174,10 @@ def interp_and_calc_strains(file, mask_side_length, dx, dy):
     # in reference coordinates
     triang = tri.Triangulation(X, Y)
     # get mask
-    triangle_mask = mask_interp_region(triang, df, mask_side_length)
+    triangle_mask, area_mask = mask_interp_region(triang, df, mask_side_length)
     # apply mask
     triang.set_mask(np.array(triangle_mask) > 0)
-    
-    # mask zero area triangles
-    xy = np.dstack((triang.x[triang.triangles], triang.y[triang.triangles]))  # shape (ntri,3,2)
-    twice_area = np.cross(xy[:,1,:] - xy[:,0,:], xy[:,2,:] - xy[:,0,:])  # shape (ntri)
-    mask = twice_area < 1e-10  # shape (ntri)
-    
-    if np.any(mask):
-        print('zero area.')
-        triang.set_mask(mask)
-    
+        
     # interpolate displacements to pixel coordinates
     for var in ['displacement_x','displacement_y']:
     
@@ -172,9 +190,9 @@ def interp_and_calc_strains(file, mask_side_length, dx, dy):
             uy = interpolator(xx, yy)
     
     # calculate strains and rotations from deformation gradient            
-    Eij, Rij = calculateEijRot(ux, uy, dx, dy)
+    Eij, Rij, Reig, stretch_p1 = calculateEijRot(ux, uy, dx, dy)
     
-    return ux, uy, Eij, Rij
+    return ux, uy, Eij, Rij, Reig, stretch_p1, area_mask, triangle_mask
 
 def calc_xsection(dir_xsection, filename, img_scale):  
     # read in coordinates from imageJ analysis stored in csv
@@ -195,10 +213,11 @@ def calc_xsection(dir_xsection, filename, img_scale):
 # ----- configure directories -----
 # root directory
 dir_root = 'Z:/Experiments/lce_tension'
+dir_root_local = 'C:/Users/jcv/Documents'
 # extensions to access sub-directories
 batch_ext = 'lcei_001'
 mts_ext = 'mts_data'
-sample_ext = '007_t01_r00'
+sample_ext = '002_t02_r00'
 gom_ext = 'gom_results'
 
 # define full paths to mts and gom data
@@ -209,11 +228,11 @@ dir_gom_results = os.path.join(dir_root,batch_ext,sample_ext,gom_ext)
 # ----- define constants -----
 spec_id = batch_ext+'_'+sample_ext # full specimen id
 Nx, Ny = 2448, 2048 # pixel resolution in x, y axis
-img_scale = 0.0106 # mm/pix
+img_scale = 0.0253 # mm/pix
 t = 1.6 # thickness of sample [mm]
 cmap_name = 'lajolla' # custom colormap stored in mpl_styles
 xsection_filename = batch_ext+'_'+sample_ext+'_section_coords.csv'
-mask_side_length = 0.5 # max side length of triangles in DeLauny triangulation
+mask_side_length = 1.2 # max side length of triangles in DeLauny triangulation
 cbar_levels = 25 # colorbar levels
 nth_frames = 5 # sub sampling images where correlation data is available
 mts_columns = ['time', 'crosshead', 'load', 'trigger', 'cam_44', 'cam_43', 'trig_arduino']
@@ -244,10 +263,6 @@ dx, dy = img_scale, img_scale
 # calculate width of specimen at each pixel location
 width_mm = calc_xsection(dir_xsection, xsection_filename, img_scale)
 
-# load in colormap
-cm_data = np.loadtxt('Z:/Python/mpl_styles/'+cmap_name+'.txt')
-custom_map = LinearSegmentedColormap.from_list('custom', cm_data)
-
 mts_df = extract_load_at_images(dir_mts, files_mts, mts_col_dtypes, 
                                 mts_columns, nth_frames)
 
@@ -269,14 +284,16 @@ def plot_rotation_field(x,y,Rij, frame_no):
 #%%
 # ---- run processing -----  
  
-for i in range(0,len(files_gom)):
+for i in range(0,1):#len(files_gom)):
     # extract frame number and display
-    #frame_no = files_gom[i][28:-10] # lcei_001_006_t02_r00
-    frame_no = files_gom[i][35:-10] 
+    frame_no = files_gom[i][28:-4] # lcei_001_006_t02_r00
+    #frame_no = files_gom[i][35:-10] 
     print('Processing frame:' + str(frame_no))
     
     # compute interpolated strains and displacements in reference coordinates
-    ux, uy, Eij, Rij = interp_and_calc_strains(files_gom[i], mask_side_length, dx, dy)
+    ux, uy, Eij, Rij, Reig, stretch_p1, area_mask, triangle_mask = interp_and_calc_strains(
+        files_gom[i], mask_side_length, dx, dy
+        )
     
     # assemble results in data frame
     outputs_df = pd.DataFrame()
@@ -286,6 +303,8 @@ for i in range(0,len(files_gom)):
     outputs_df['Eyy'] = np.reshape(Eij['22'],(Nx*Ny,))
     outputs_df['Exy'] = np.reshape(Eij['12'],(Nx*Ny,))
     outputs_df['R'] = np.reshape(Rij,(Nx*Ny,))
+    outputs_df['Reig'] = np.reshape(Reig,(Nx*Ny,))
+    outputs_df['lambda1'] = np.reshape(stretch_p1,(Nx*Ny,))
     
     # ----- compile results into dataframe -----
     # concatenate to create one output dataframe
@@ -305,9 +324,8 @@ for i in range(0,len(files_gom)):
     
     save_filename = 'results_df_frame_'+str(frame_no)+'.pkl'
     results_df.to_pickle(os.path.join(dir_gom_results,save_filename))
-    
-    #plot_rotation_field(xx_pix,yy_pix,Rij,frame_no)
-#%% ===== DEBUGGING CODE =====
+
+#%% ===== INTERPOLATION DEBUGGING CODE =====
 '''
 good_triangle = []
 triang = tri.Triangulation(df['x'], df['y'])

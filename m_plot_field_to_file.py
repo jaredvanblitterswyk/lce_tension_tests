@@ -68,7 +68,7 @@ dir_root = 'Z:/Experiments/lce_tension'
 # extensions to access sub-directories
 batch_ext = 'lcei_001'
 mts_ext = 'mts_data'
-sample_ext = '007_t01_r00'
+sample_ext = '002_t02_r00'
 gom_ext = 'gom_results'
 
 # define full paths to mts and gom data
@@ -97,7 +97,7 @@ dir_rotation_folder = os.path.join(dir_figs_root,'rotation_fields')
 # ----- define constants -----
 spec_id = batch_ext+'_'+sample_ext # full specimen id
 Ny, Nx = 2448, 2048 # pixel resolution in x, y axis
-img_scale = 0.0106 # mm/pix
+img_scale = 0.0253 # mm/pix
 t = 1.6 # thickness of sample [mm]
 cmap_name = 'lajolla' # custom colormap stored in mpl_styles
 cbar_levels = 25 # colorbar levels
@@ -114,9 +114,9 @@ files_pkl = [f for f in os.listdir(dir_gom_results) if f.endswith('.pkl')]
 #%%
 # load in data
 frame_count = 0
-for i in range(0,25):
+for i in range(35,50):
     print('Processing frame: '+str(i))
-    save_filename = 'results_df_frame_'+str(i)+'.pkl'
+    save_filename = 'results_df_frame_'+"{:02d}".format(i)+'.pkl'
     frame_df = pd.read_pickle(os.path.join(dir_gom_results,save_filename))
         
     # add time stamp to frame to allow for sorting later
@@ -140,55 +140,56 @@ all_frames_df['y_mm'] = all_frames_df['y_pix']*img_scale + all_frames_df['uy']
 #%% 
 # create dictionary of plot parameters - pass to function
 plot_params = {'figsize': (3,1), 'xlabel': 'x (mm)', 'ylabel': 'y (mm)', 
-               's': 0.5, 'xmin': 0, 'xmax': 28,
-               'ymin': 7, 'ymax': 13,
-               'dpi': 200, 'cmap': custom_map,
+               's': 0.01, 'xmin': 0, 'xmax': 90,
+               'ymin': 21, 'ymax': 29,
+               'dpi': 300, 'cmap': custom_map,
                'tight_layout': True, 'hide_labels': False, 'show_fig': False,
                'save_fig': True
-               }   
+               } 
 
-for i in range(25,47):
+plot_var_specific = {'Exx': {
+                'vlims': [0, 2.6], 'dir_save_figs': dir_strain_folder
+              },
+              'Eyy': {
+                  'vlims': [-0.3, 0], 'dir_save_figs': dir_strain_folder
+              },
+              'Exy': {
+                  'vlims': [-0.2, 0.2], 'dir_save_figs': dir_strain_folder
+              },
+              'ux': {
+                  'vlims': [0, 36], 'dir_save_figs': dir_disp_folder
+              },
+              'uy': {
+                  'vlims': [-2, 2], 'dir_save_figs': dir_disp_folder
+              },
+              'R': {
+                  'vlims': [-1, 4], 'dir_save_figs': dir_rotation_folder
+              },
+              'Reig': {
+                  'vlims': [-1, 4], 'dir_save_figs': dir_rotation_folder
+              },
+              'lambda1': {
+                  'vlims': [0, 6], 'dir_save_figs': dir_strain_folder
+              }
+              }  
+
+for i in range(35,50):
+    plt.close('all')
     print('Plotting fields for frame: '+str(i))
-    for j in ['ux','uy','Exx','Eyy','Exy','R']:
+    for j in ['ux','uy','Exx','Eyy','Exy','R', 'Reig', 'lambda1']:
         
         # filter data to plot
-        xx = np.array(all_frames_df[all_frames_df['frame'] == i][['x_mm']])
-        yy = np.array(all_frames_df[all_frames_df['frame'] == i][['y_mm']])
+        xx = np.array(all_frames_df[all_frames_df['frame'] == i][['x_mm']]) + np.array(all_frames_df[all_frames_df['frame'] == i][['ux']])
+        yy = np.array(all_frames_df[all_frames_df['frame'] == i][['y_mm']]) + np.array(all_frames_df[all_frames_df['frame'] == i][['uy']])
         zz = np.array(all_frames_df[all_frames_df['frame'] == i][[j]])
         
-        # set limits for plotting based on last frame pd.describe()
-        if j == 'Exx':
-            vmin = 0
-            vmax = 6.5
-            dir_save_figs = dir_strain_folder
-        elif j == 'Eyy':
-            vmin = -0.4
-            vmax = 0.4
-            dir_save_figs = dir_strain_folder
-        elif j == 'Exy':
-            vmin = -1
-            vmax = 1
-            dir_save_figs = dir_strain_folder
-        elif j == 'ux':
-            vmin = 0
-            vmax = 22
-            dir_save_figs = dir_disp_folder
-        elif j == 'uy':
-            vmin = -1.2
-            vmax = 1.2
-            dir_save_figs = dir_disp_folder
-        else:
-            vmin = 0
-            vmax = 12
-            dir_save_figs = dir_rotation_folder
-        
-        # assign additional key:value pairs to plot params dictionary
-        plot_params['vmin'] = vmin
-        plot_params['vmax'] = vmax
+        # assign variable-specific key:value pairs to plot params dictionary
+        plot_params['vmin'] = plot_var_specific[j]['vlims'][0]
+        plot_params['vmax'] = plot_var_specific[j]['vlims'][1]
         plot_params['var_name'] = j
         
         # define full path of image
-        fpath = dir_save_figs+'/'+spec_id+'_'+j+'_'+str(i)+'.tiff'
+        fpath = plot_var_specific[j]['dir_save_figs']+'/'+spec_id+'_'+j+'_'+str(i)+'.tiff'
         
         plot_params['fpath'] = fpath
         
@@ -196,7 +197,38 @@ for i in range(25,47):
         plot_field_contour_save(xx, yy, zz, plot_params)
 
 #%%
-
-
+# lcei_007_t02_r00 plotparams
+plot_params = {'figsize': (3,1), 'xlabel': 'x (mm)', 'ylabel': 'y (mm)', 
+               's': 0.1, 'xmin': 0, 'xmax': 28,
+               'ymin': 7, 'ymax': 13,
+               'dpi': 300, 'cmap': custom_map,
+               'tight_layout': True, 'hide_labels': False, 'show_fig': False,
+               'save_fig': True
+               }   
+plot_var_specific = {'Exx': {
+                'vlims': [0, 3.5], 'dir_save_figs': dir_strain_folder
+              },
+              'Eyy': {
+                  'vlims': [-0.4, 0.4], 'dir_save_figs': dir_strain_folder
+              },
+              'Exy': {
+                  'vlims': [-1, 1], 'dir_save_figs': dir_strain_folder
+              },
+              'ux': {
+                  'vlims': [0 22], 'dir_save_figs': dir_disp_folder
+              },
+              'uy': {
+                  'vlims': [-1.2, 1.2], 'dir_save_figs': dir_disp_folder
+              },
+              'R': {
+                  'vlims': [0, 12], 'dir_save_figs': dir_rotation_folder
+              },
+              'Reig': {
+                  'vlims': [0, 6], 'dir_save_figs': dir_rotation_folder
+              },
+              'lambda1': {
+                  'vlims': [0, 10], 'dir_save_figs': dir_strain_folder
+              }
+              }
 
 
