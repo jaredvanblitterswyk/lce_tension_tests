@@ -217,7 +217,7 @@ dir_root_local = 'C:/Users/jcv/Documents'
 # extensions to access sub-directories
 batch_ext = 'lcei_001'
 mts_ext = 'mts_data'
-sample_ext = '002_t02_r00'
+sample_ext = '007_t02_r00'
 gom_ext = 'gom_results'
 
 # define full paths to mts and gom data
@@ -228,7 +228,7 @@ dir_gom_results = os.path.join(dir_root,batch_ext,sample_ext,gom_ext)
 # ----- define constants -----
 spec_id = batch_ext+'_'+sample_ext # full specimen id
 Nx, Ny = 2448, 2048 # pixel resolution in x, y axis
-img_scale = 0.0253 # mm/pix
+img_scale = 0.0132 # mm/pix
 t = 1.6 # thickness of sample [mm]
 cmap_name = 'lajolla' # custom colormap stored in mpl_styles
 xsection_filename = batch_ext+'_'+sample_ext+'_section_coords.csv'
@@ -284,7 +284,7 @@ def plot_rotation_field(x,y,Rij, frame_no):
 #%%
 # ---- run processing -----  
  
-for i in range(0,1):#len(files_gom)):
+for i in range(0,len(files_gom)):
     # extract frame number and display
     frame_no = files_gom[i][28:-4] # lcei_001_006_t02_r00
     #frame_no = files_gom[i][35:-10] 

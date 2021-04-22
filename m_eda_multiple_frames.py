@@ -51,9 +51,9 @@ dir_xsection = os.path.join(dir_root,batch_ext,sample_ext)
 dir_mts = os.path.join(dir_root,batch_ext,mts_ext,batch_ext+'_'+sample_ext)
 dir_gom_results = os.path.join(dir_root,batch_ext,sample_ext,gom_ext)
 
-img_scale = 0.0253 # image scale (mm/pix)
+img_scale = 0.0106 # image scale (mm/pix)
 if load_multiple_frames:
-    for i in range(1,70):
+    for i in range(1,50):
         print('Adding frame: '+str(i))
         save_filename = 'results_df_frame_' + '{:02d}'.format(i) + '.pkl'
         frame_df = pd.read_pickle(os.path.join(dir_gom_results,save_filename))
@@ -89,6 +89,8 @@ agg_frame_df.plot.scatter(x = 'Exx', y = 'stress_mpa', s = 4, c = '#4E598D')
 plt.show()
 '''
 
+all_frames_df = all_frames_df.dropna(axis = 0)
+
 #%% ----- EXPLORATORY DATA ANALYSIS -----
 # ----------------------------------------------------------------------------
 # ----- plot histogram and box plot of strain for each frame -----
@@ -99,7 +101,7 @@ frame_range = len(
     )
 
 # set frame range manually
-frame_range = 44
+frame_range = 39
 
 num_img_x = 6
 num_img_y = int(round((frame_range)/num_img_x,0))
@@ -115,12 +117,12 @@ data_exx = []
 data_eyy = []
 data_exy = []
 
-var_to_plot = 'Exy'
+var_to_plot = 'Eyy'
 
 # loop through range of frames and generate histogram and box plots
 plot_num = 0
 
-for i in range(2,frame_range):
+for i in range(3,frame_range):
     row = int(plot_num/(num_img_x))
     col = plot_num - row*(num_img_x)
     #print(str(row)+', '+str(col)) # check index logic
@@ -235,17 +237,19 @@ plot_boxplot_vs_frame(data_exy, ylabel = 'Exy')
 # ----------------------------------------------------------------------------
 # create dataframe for frame used to define coordinates in strain bands 
 mask_frame = 20
-num_strain_bands = 9
-strain_component = 'Exx'
+num_category_bands = 6
+y_var = 'R'
+x_var = 'frame'
+cat_var = 'Exx'
+num_samples_to_plot = 4000
 
 single_frame_df = all_frames_df[all_frames_df['frame'] == mask_frame]
 
 # calculate strain range bounds
-max_strain_band = round(single_frame_df[strain_component].max(),1)
-min_strain_band = round(single_frame_df[strain_component].min(),1)
-strain_ranges = np.linspace(min_strain_band, max_strain_band, num_strain_bands)
-#Exy
-strain_ranges = np.linspace(min_strain_band, max_strain_band, num_strain_bands)
+max_category_band = round(single_frame_df[cat_var].quantile(0.98),1)
+min_category_band = round(single_frame_df[cat_var].min(),1)
+
+category_ranges = np.linspace(min_category_band, max_category_band, num_category_bands)
 
 # colour and edge colour arrays (hard coded to 10 or less strain bands)
 ec = ['#003057', '#00313C', '#9E2A2F', '#623412','#284723',
@@ -254,7 +258,7 @@ c = ['#BDD6E6', '#8DB9CA', '#F4C3CC', '#D9B48F', '#9ABEAA',
      '#C9B1D0', '#F1C6A7', '#C8C9C7', '#88DBDF', '#C1B2B6']
 
 num_img_x = 3
-num_img_y = int((num_strain_bands)/num_img_x)
+num_img_y = int((num_category_bands)/num_img_x)
 
 fig, axs = plt.subplots(num_img_y, num_img_x, figsize=(5,5),
                         sharey=True, tight_layout=True)
@@ -263,57 +267,62 @@ fig, axs = plt.subplots(num_img_y, num_img_x, figsize=(5,5),
 if load_multiple_frames:
     single_frame_df = all_frames_df[all_frames_df['frame'] == mask_frame]
     
-    for i in range(1,num_strain_bands+1):
+    for i in range(1,num_category_bands+1):
         row = int(i/(num_img_x+0.1))
         col = i - row*(num_img_x) - 1
         #print(str(row)+', '+str(col)) # check index logic
     
-        if i == num_strain_bands:
-            strain_band_df = single_frame_df[
-                single_frame_df[strain_component] >= strain_ranges[i-1]]   
+        if i == num_category_bands:
+            category_band_df = single_frame_df[
+                single_frame_df[cat_var] >= category_ranges[i-1]]   
         else:
-            strain_band_df = single_frame_df[(
-                single_frame_df[strain_component] >= strain_ranges[i-1]
+            category_band_df = single_frame_df[(
+                single_frame_df[cat_var] >= category_ranges[i-1]
                 ) & (
-                single_frame_df[strain_component] < strain_ranges[i]
+                single_frame_df[cat_var] < category_ranges[i]
                 )]
                 
         # find all points within that strain range
         agg_strain_band_df = all_frames_df[
-        all_frames_df.index.isin(strain_band_df.index)]
+        all_frames_df.index.isin(category_band_df.index)]
         
-        if agg_strain_band_df.shape[0] > 2000:
-            strain_band_sample = agg_strain_band_df.sample(n = 2000, 
-                                                           random_state = 1)
+        if agg_strain_band_df.shape[0] > num_samples_to_plot:
+            category_band_sample = agg_strain_band_df.sample(
+                n = num_samples_to_plot, random_state = 1
+                )
         else:
-            strain_band_sample = agg_strain_band_df.copy()
+            category_band_sample = agg_strain_band_df.copy()
         
         # add to plot
-        axs[row,col].scatter(strain_band_sample['frame'], 
-                             strain_band_sample[strain_component],
-                             s = 2, 
-                             c = c[i-1], 
-                             edgecolors = ec[i-1], 
-                             alpha = 0.4,
-                             linewidths = 0.5)
-        axs[row,col].set_xlim([0,len(all_frames_df['frame'].unique())+2])
-        axs[row,col].set_ylim([0,round(
-            all_frames_df[strain_component].max(),1
+        axs[row,col].scatter(
+            category_band_sample[x_var], 
+            category_band_sample[y_var],
+            s = 2, c = c[i-1], edgecolors = ec[i-1], 
+            alpha = 0.4, linewidths = 0.5
             )
-            +0.2
+        axs[row,col].set_ylim([0, round(
+            all_frames_df[y_var].quantile(0.995),1
+            )
+            +0.5
             ])
-        axs[row,col].set_xlabel('Frame')
-        axs[row,col].set_ylabel(strain_component)
+        #axs[row,col].set_xlim([0,len(all_frames_df[dependent_var].unique())+2])
+        axs[row,col].set_xlim([0,round(
+            all_frames_df[x_var].quantile(0.995),1
+            )
+            +0.5
+            ])
+        axs[row,col].set_ylabel(y_var)
+        axs[row,col].set_xlabel(x_var)
         axs[row,col].grid(True, alpha = 0.5,zorder = 0)
         if i == num_strain_bands:
             axs[row,col].set_title(
-                'strain_band: '+'>'+str(round(strain_ranges[i-1],1)),
+                cat_var+'_band: '+'>'+str(round(category_ranges[i-1],1)),
                 fontsize = 5
                 )
         else:       
             axs[row,col].set_title(
-                'strain_band: '+str(round(strain_ranges[i-1],1))+
-                ':'+ str(round(strain_ranges[i],1)), 
+                cat_var+'_band: '+str(round(category_ranges[i-1],1))+
+                ':'+ str(round(category_ranges[i],1)), 
                 fontsize = 5
                 )
     
@@ -336,16 +345,16 @@ else:
     strain_band_indices = []
     for i in range(1,num_strain_bands+1):
         if i == num_strain_bands:
-            strain_band_df = single_frame_df[
-                single_frame_df[strain_component] >= strain_ranges[i-1]]   
+            category_band_df = single_frame_df[
+                single_frame_df[y_var] >= category_ranges[i-1]]   
         else:
-            strain_band_df = single_frame_df[(
-                single_frame_df[strain_component] >= strain_ranges[i-1]
+            category_band_df = single_frame_df[(
+                single_frame_df[y_var] >= category_ranges[i-1]
                 ) & (
-                single_frame_df[strain_component] < strain_ranges[i]
+                single_frame_df[y_var] < strain_ranges[i]
                 )]
                     
-        strain_band_indices.append(strain_band_df.index)
+        category_band_indices.append(category_band_df.index)
 
     # ----- plot strain bands vs time -----
     for j in range(0,frame_range):
@@ -358,46 +367,46 @@ else:
         # add time stamp to frame to allow for sorting later
         curr_frame_df['frame'] = j*np.ones((curr_frame_df.shape[0],))      
         row, col = 0, 0 # current row and column number for plotting
-        for i in range(1,num_strain_bands+1):
+        for i in range(1,num_category_bands+1):
             row = int(i/(num_img_x+0.1))
             col = i - row*(num_img_x) - 1
             #print(str(row)+', '+str(col)) # check index logic
                     
             # find all points within that strain range
-            strain_band = curr_frame_df[
-                curr_frame_df.index.isin(strain_band_indices[i-1])
+            category_band = curr_frame_df[
+                curr_frame_df.index.isin(category_band_indices[i-1])
                 ]
                                       
             
-            if strain_band.shape[0] > 2000:
-                strain_band_sample = strain_band.sample(
-                    n = 2000, random_state = 1
+            if category_band.shape[0] > num_samples_to_plot:
+                category_band_sample = category_band.sample(
+                    n = num_samples_to_plot, random_state = 1
                     )
             else:
-                strain_band_sample = strain_band.copy()
+                category_band_sample = category_band.copy()
             
             # add to plot
-            axs[row,col].scatter(strain_band_sample['frame'], 
-                                 strain_band_sample[strain_component],
-                                 s = 2, 
-                                 c = c[i-1], 
-                                 edgecolors = ec[i-1], 
-                                 alpha = 0.4,
-                                 linewidths = 0.5)
+            axs[row,col].scatter(
+                category_band_sample[x_var], 
+                category_band_sample[y_var],
+                s = 2, c = c[i-1], edgecolors = ec[i-1], 
+                alpha = 0.4, linewidths = 0.5
+                )
+            
             axs[row,col].set_xlim([0,frame_range+2])
-            axs[row,col].set_ylim([min_strain_band-0.1,max_strain_band+0.1])
-            axs[row,col].set_xlabel('Frame')
-            axs[row,col].set_ylabel(strain_component)
+            axs[row,col].set_ylim([min_category_band-0.1,max_category_band+0.1])
+            axs[row,col].set_xlabel(x_var)
+            axs[row,col].set_ylabel(y_var)
             axs[row,col].grid(True, alpha = 0.5,zorder = 0)
-            if i == num_strain_bands:
+            if i == num_category_bands:
                 axs[row,col].set_title(
-                    'strain_band: '+'>'+str(round(strain_ranges[i-1],1)),
+                    cat_var+'_band: '+'>'+str(round(category_ranges[i-1],1)),
                     fontsize = 5
                     )
             else:       
                 axs[row,col].set_title(
-                    'strain_band: '+str(round(strain_ranges[i-1],1))+
-                    ':'+ str(round(strain_ranges[i],1)), 
+                    cat_var+'_band: '+str(round(category_ranges[i-1],1))+
+                    ':'+ str(round(category_ranges[i],1)), 
                     fontsize = 5
                     )
             
@@ -495,7 +504,7 @@ for i in range(1,num_strain_bands+1):
 ax.grid(True, alpha = 0.5)
 ax.set_xlabel('x (mm)')
 ax.set_ylabel('y (mm)')
-ax.set_xlim([0,20])
+ax.set_xlim([0,15])
 
 # shrink current axes box to place legend overhead with axes labels
 # Shrink current axis's height by 10% on the bottom
@@ -540,22 +549,22 @@ all_frames_df['x_mm'] = all_frames_df['x_pix']*img_scale + all_frames_df['ux']
 all_frames_df['y_mm'] = all_frames_df['y_pix']*img_scale + all_frames_df['uy']
 
 # filter based on frame and location
-xx = np.array(all_frames_df[(all_frames_df['frame'] == 20) & 
+xx = np.array(all_frames_df[(all_frames_df['frame'] == mask_frame) & 
                             (all_frames_df['x_mm'] > 15) &
                             (all_frames_df['x_mm'] < 40) &
                             (all_frames_df['R'] > 1)][['Exx']])
 
-yy = np.array(all_frames_df[(all_frames_df['frame'] == 20) & 
+yy = np.array(all_frames_df[(all_frames_df['frame'] == mask_frame) & 
                             (all_frames_df['x_mm'] > 15) &
                             (all_frames_df['x_mm'] < 40) &
                             (all_frames_df['R'] > 1)][['Eyy']])
 
-zz = np.array(all_frames_df[(all_frames_df['frame'] == 20) & 
+zz = np.array(all_frames_df[(all_frames_df['frame'] == mask_frame) & 
                             (all_frames_df['x_mm'] > 15) &
                             (all_frames_df['x_mm'] < 40) & 
                             (all_frames_df['R'] > 1)][['Exy']])
 
-cc = np.array(all_frames_df[(all_frames_df['frame'] == 20) & 
+cc = np.array(all_frames_df[(all_frames_df['frame'] == mask_frame) & 
                             (all_frames_df['x_mm'] > 15) &
                             (all_frames_df['x_mm'] < 40)&
                             (all_frames_df['R'] > 1)][['R']])
@@ -574,10 +583,106 @@ f.colorbar(scttr, ax = ax, shrink = 0.5, aspect = 10)
 plt.tight_layout()
 plt.show()
 
+#%% ----- EXX VS EYY (CHECK COMPRESSIBILITY) -----
+
+# ----------------------------------------------------------------------------
+# ----- filter data into strain ranges based on selected frame -----
+# ----------------------------------------------------------------------------
+# --- plot setup ---
+mask_frame = 20
+num_category_bands = 6
+y_var = 'Eyy'
+x_var = 'Exx'
+cat_var = 'Exx'
+num_samples_to_plot = 4000
+
+# colour and edge colour arrays (hard coded to 10 or less strain bands)
+ec = ['#003057', '#00313C', '#9E2A2F', '#623412','#284723',
+      '#59315F', '#A45A2A', '#53565A', '#007377', '#453536']
+c = ['#BDD6E6', '#8DB9CA', '#F4C3CC', '#D9B48F', '#9ABEAA',
+     '#C9B1D0', '#F1C6A7', '#C8C9C7', '#88DBDF', '#C1B2B6']
+
+x_fit = np.linspace(0,2.8,500)
+y_fit = 0.5*(1/np.sqrt(1+2*x_fit) - 1)
+
+num_img_x = 1
+num_img_y = 1
+
+# ----- processing/plotting -----
+single_frame_df = all_frames_df[all_frames_df['frame'] == mask_frame]
+
+# calculate strain range bounds
+max_category_band = round(single_frame_df[cat_var].quantile(0.98),1)
+min_category_band = round(single_frame_df[cat_var].min(),1)
+
+category_ranges = np.linspace(
+    min_category_band, max_category_band, num_category_bands
+    )
+
+fig, axs = plt.subplots(num_img_x, num_img_y, figsize=(3,3),
+                        sharey=True, tight_layout=True)
+
+for i in range(4,num_category_bands+1):
+
+    if i == num_category_bands:
+        category_band_df = single_frame_df[
+            single_frame_df[cat_var] >= category_ranges[i-1]]   
+    else:
+        category_band_df = single_frame_df[(
+            single_frame_df[cat_var] >= category_ranges[i-1]
+            ) & (
+            single_frame_df[cat_var] < category_ranges[i]
+            )]
+            
+    # find all points within that strain range
+    agg_strain_band_df = all_frames_df[
+    all_frames_df.index.isin(category_band_df.index)]
+    
+    if agg_strain_band_df.shape[0] > num_samples_to_plot:
+        category_band_sample = agg_strain_band_df.sample(
+            n = num_samples_to_plot, random_state = 1
+            )
+    else:
+        category_band_sample = agg_strain_band_df.copy()
+    
+    # add to plot
+    axs.scatter(
+        category_band_sample[x_var], 
+        category_band_sample[y_var],
+        s = 2, c = c[i-1], edgecolors = ec[i-1], 
+        alpha = 0.3, linewidths = 0.5, label = 'Band: ' + str(i)
+        )
+    '''
+    axs.set_ylim([0, round(
+        all_frames_df[y_var].quantile(0.995),1
+        )
+        +0.5
+        ])
+    #axs[row,col].set_xlim([0,len(all_frames_df[dependent_var].unique())+2])
+    axs.set_xlim([0,round(
+        all_frames_df[x_var].quantile(0.995),1
+        )
+        +0.5
+        ])
+    '''
+    axs.set_ylabel(y_var)
+    axs.set_xlabel(x_var)
+    axs.grid(True, alpha = 0.5,zorder = 0)  
+
+# compare against incompressible relationship    
+axs.scatter(
+    x_fit, y_fit, s = 0.5, c = 'k', edgecolors = 'k', 
+    alpha = 1.0, label = 'Incompressible')
+
+# add legend
+plt.legend(loc='upper right', fontsize = 4)
+legend = axs.legend(fontsize = 4)
+legend.get_frame().set_linewidth(0.5)
+
 #%% ----- EXTRA PLOT CAPABILITIES -----
 # ----------------------------------------------------------------------------
 # Take last group and overlay spatial mask
-
+'''
 strain_band = 8
 
 if strain_band == num_strain_bands:
@@ -693,3 +798,4 @@ if ~load_multiple_frames:
     ax.set_title('Exx > '+str(exx_max)+', '+str(exy_min)+'< Exy <= '+str(exy_max))
     
     plt.tight_layout()
+'''
