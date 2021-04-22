@@ -49,9 +49,16 @@ def compute_R(F):
         
     return An
     
-def calculateEijRot(disp_x, disp_y, dx, dy):
-
-    I = np.matrix(([1,0],[0,1]))
+def calculateEijRot(disp, strain_labels, spacing):
+    # pull out displacement fields
+    disp_x = disp.get('ux')
+    disp_y = disp.get('uy')
+    
+    # pull out measurement point spacing
+    dx = spacing[0]
+    dy = spacing[1]
+    
+    #compute displacement gradient fields
     du_dy, du_dx = np.gradient(disp_x)
     dv_dy, dv_dx = np.gradient(disp_y)
     
@@ -61,11 +68,17 @@ def calculateEijRot(disp_x, disp_y, dx, dy):
     
     row, col = disp_x.shape
     
-    Eij = {'11': np.zeros((row,col)),'22': np.zeros((row,col)), '12': np.zeros((row,col))}
+    # initialize empty variables for strain and rotation fields
+    Eij = {}
+    for component in strain_labels:
+        Eij[component] = np.zeros((row,col))
+    
     Rij = np.zeros((row,col))
     Reig = np.zeros((row,col))
     stretch_p1 = np.zeros((row,col))
       
+    I = np.matrix(([1,0],[0,1]))
+    
     for i in range(0,row):
         for j in range(0,col):
             # calculate deformation tensor
@@ -84,7 +97,9 @@ def calculateEijRot(disp_x, disp_y, dx, dy):
             #C = np.matmul(np.transpose(Fij),Fij)
 
             # calculate Lagrange strains
-            Eij['11'][i,j] = eij[0,0]; Eij['22'][i,j] = eij[1,1]; Eij['12'][i,j] = eij[0,1]
+            Eij['Exx'][i,j] = eij[0,0]
+            Eij['Eyy'][i,j] = eij[1,1]
+            Eij['Exy'][i,j] = eij[0,1]
             
             R = compute_R(Fij)
                         
@@ -160,7 +175,7 @@ def extract_load_at_images(file_path, files, col_dtypes, columns, nth_frames):
     # return data at every nth frame    
     return cam_trig_df.iloc[::nth_frames,:]
 
-def interp_and_calc_strains(file, mask_side_length, dx, dy):
+def interp_and_calc_strains(file, mask_side_length, spacing, disp_labels, strain_labels):
     # load in data
     df = pd.read_csv(os.path.join(dir_gom_results,file), skiprows = 5)
     
@@ -177,34 +192,41 @@ def interp_and_calc_strains(file, mask_side_length, dx, dy):
     triangle_mask, area_mask = mask_interp_region(triang, df, mask_side_length)
     # apply mask
     triang.set_mask(np.array(triangle_mask) > 0)
+    
+    switcher = {'ux': 'displacement_x',
+                'uy': 'displacement_y',
+                'uz': 'displacement_z'}
+    
+    disp = {}
         
     # interpolate displacements to pixel coordinates
-    for var in ['displacement_x','displacement_y']:
+    for component in disp_labels:
     
-        interpolator = tri.LinearTriInterpolator(triang, df[var])
+        interpolator = tri.LinearTriInterpolator(
+            triang, df[switcher.get(component)]
+            )
         
-        # evaluate interpolator object at regular grids
-        if var == 'displacement_x':
-            ux = interpolator(xx, yy)
-        else:
-            uy = interpolator(xx, yy)
+        disp[component] = interpolator(xx, yy)
     
     # calculate strains and rotations from deformation gradient            
-    Eij, Rij, Reig, stretch_p1 = calculateEijRot(ux, uy, dx, dy)
+    Eij, Rij, Reig, stretch_p1 = calculateEijRot(disp, strain_labels, spacing)
     
-    return ux, uy, Eij, Rij, Reig, stretch_p1, area_mask, triangle_mask
+    return disp, Eij, Rij, Reig, stretch_p1, area_mask, triangle_mask
 
-def calc_xsection(dir_xsection, filename, img_scale):  
+def calc_xsection(dir_xsection, filename, img_scale, orientation):  
     # read in coordinates from imageJ analysis stored in csv
     section_df = pd.read_csv(os.path.join(dir_xsection,filename), 
                              encoding='UTF-8')
     # drop unnecessary values
     section_df.drop(columns = 'Value', inplace = True)
+    if orientation == 'horizontal':
+        max_c = section_df.groupby(['X']).max()
+        min_c = section_df.groupby(['X']).min()
+    else:
+        max_c = section_df.groupby(['Y']).max()
+        min_c = section_df.groupby(['Y']).min()
     
-    max_y = section_df.groupby(['X']).max()
-    min_y = section_df.groupby(['X']).min()
-    
-    width = max_y - min_y
+    width = max_c - min_c
     width_mm = width*img_scale   
 
     return width_mm
@@ -217,19 +239,23 @@ dir_root_local = 'C:/Users/jcv/Documents'
 # extensions to access sub-directories
 batch_ext = 'lcei_001'
 mts_ext = 'mts_data'
-sample_ext = '007_t02_r00'
+sample_ext = '003_t04_r00'
 gom_ext = 'gom_results'
 
 # define full paths to mts and gom data
-dir_xsection = os.path.join(dir_root,batch_ext,sample_ext)
-dir_mts = os.path.join(dir_root,batch_ext,mts_ext,batch_ext+'_'+sample_ext)
-dir_gom_results = os.path.join(dir_root,batch_ext,sample_ext,gom_ext)
+try:
+    dir_xsection = os.path.join(dir_root,batch_ext,sample_ext)
+    dir_mts = os.path.join(dir_root,batch_ext,mts_ext,batch_ext+'_'+sample_ext)
+    dir_gom_results = os.path.join(dir_root,batch_ext,sample_ext,gom_ext)
+except:
+    print('One of setup directories does not exist.')
 
 # ----- define constants -----
 spec_id = batch_ext+'_'+sample_ext # full specimen id
 Nx, Ny = 2448, 2048 # pixel resolution in x, y axis
-img_scale = 0.0132 # mm/pix
+img_scale = 0.0127 # mm/pix
 t = 1.6 # thickness of sample [mm]
+orientation = 'vertical'
 cmap_name = 'lajolla' # custom colormap stored in mpl_styles
 xsection_filename = batch_ext+'_'+sample_ext+'_section_coords.csv'
 mask_side_length = 1.2 # max side length of triangles in DeLauny triangulation
@@ -261,13 +287,20 @@ xx,yy = xx_pix*img_scale, yy_pix*img_scale # matrix of x and y coordinates (mm)
 dx, dy = img_scale, img_scale
 
 # calculate width of specimen at each pixel location
-width_mm = calc_xsection(dir_xsection, xsection_filename, img_scale)
+try:
+    width_mm = calc_xsection(
+        dir_xsection, xsection_filename, img_scale, orientation
+        )
+except: 
+    print('No file containing cross-section coordinates found.')
 
-mts_df = extract_load_at_images(dir_mts, files_mts, mts_col_dtypes, 
+try:
+    mts_df = extract_load_at_images(dir_mts, files_mts, mts_col_dtypes, 
                                 mts_columns, nth_frames)
-
-# reset index
-mts_df = mts_df.reset_index(drop=True)
+    # reset index
+    mts_df = mts_df.reset_index(drop=True)
+except:
+    print('No file containing mts measurements found.')
 
 # assemble results dataframe
 coords_df = pd.DataFrame()
@@ -283,25 +316,31 @@ def plot_rotation_field(x,y,Rij, frame_no):
     plt.ylabel('y (pix)')
 #%%
 # ---- run processing -----  
+disp_labels = ['ux', 'uy', 'uz']
+strain_labels = ['Exx', 'Eyy', 'Exy']
  
 for i in range(0,len(files_gom)):
     # extract frame number and display
-    frame_no = files_gom[i][28:-4] # lcei_001_006_t02_r00
+    frame_no = files_gom[i][22:-10] # lcei_001_006_t02_r00
     #frame_no = files_gom[i][35:-10] 
     print('Processing frame:' + str(frame_no))
     
+    spacing = [dx, dy]
+    
     # compute interpolated strains and displacements in reference coordinates
-    ux, uy, Eij, Rij, Reig, stretch_p1, area_mask, triangle_mask = interp_and_calc_strains(
-        files_gom[i], mask_side_length, dx, dy
+    disp, Eij, Rij, Reig, stretch_p1, area_mask, triangle_mask = interp_and_calc_strains(
+        files_gom[i], mask_side_length, spacing, disp_labels, strain_labels
         )
     
     # assemble results in data frame
     outputs_df = pd.DataFrame()
-    outputs_df['ux'] = np.reshape(ux,(Nx*Ny,))
-    outputs_df['uy'] = np.reshape(uy,(Nx*Ny,))
-    outputs_df['Exx'] = np.reshape(Eij['11'],(Nx*Ny,))
-    outputs_df['Eyy'] = np.reshape(Eij['22'],(Nx*Ny,))
-    outputs_df['Exy'] = np.reshape(Eij['12'],(Nx*Ny,))
+    
+    for component in disp_labels:
+        outputs_df[component] = np.reshape(disp.get(component),(Nx*Ny,))
+    
+    for component in strain_labels:
+        outputs_df[component] = np.reshape(Eij.get(component),(Nx*Ny,))
+
     outputs_df['R'] = np.reshape(Rij,(Nx*Ny,))
     outputs_df['Reig'] = np.reshape(Reig,(Nx*Ny,))
     outputs_df['lambda1'] = np.reshape(stretch_p1,(Nx*Ny,))
@@ -313,11 +352,14 @@ for i in range(0,len(files_gom)):
     results_df = results_df.dropna(axis=0, how = 'any')
     # assign cross-section width based on pixel location
     results_df['width_mm'] = results_df['x_pix']
-    results_df['width_mm'] = results_df['width_mm'].apply(lambda x: width_mm.loc[x][0] if x in width_mm.index else np.nan)
-    # assign cross-section area
-    results_df['area_mm2'] = results_df['width_mm'].apply(lambda x: x*t)
-    # assign width-averaged stress
-    results_df['stress_mpa'] = mts_df.iloc[int(frame_no),1]/results_df['area_mm2']
+    try:
+        results_df['width_mm'] = results_df['width_mm'].apply(lambda x: width_mm.loc[x][0] if x in width_mm.index else np.nan)
+        # assign cross-section area
+        results_df['area_mm2'] = results_df['width_mm'].apply(lambda x: x*t)
+        # assign width-averaged stress
+        results_df['stress_mpa'] = mts_df.iloc[int(frame_no),1]/results_df['area_mm2']
+    except: 
+        print('No cross-section coordinates loaded - excluding width, area and stress from dataframe.')
     
     # drop rows with no cross-section listed
     results_df = results_df.dropna(axis=0, how = 'any')
