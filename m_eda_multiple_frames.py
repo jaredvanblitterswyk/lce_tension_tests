@@ -53,7 +53,7 @@ dir_gom_results = os.path.join(dir_root,batch_ext,sample_ext,gom_ext)
 
 img_scale = 0.0106 # image scale (mm/pix)
 if load_multiple_frames:
-    for i in range(1,50):
+    for i in range(1,35):
         print('Adding frame: '+str(i))
         save_filename = 'results_df_frame_' + '{:02d}'.format(i) + '.pkl'
         frame_df = pd.read_pickle(os.path.join(dir_gom_results,save_filename))

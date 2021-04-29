@@ -321,7 +321,7 @@ strain_labels = ['Exx', 'Eyy', 'Exy']
  
 for i in range(0,len(files_gom)):
     # extract frame number and display
-    frame_no = files_gom[i][22:-10] # lcei_001_006_t02_r00
+    frame_no = files_gom[i][21:-10] # lcei_001_006_t02_r00
     #frame_no = files_gom[i][35:-10] 
     print('Processing frame:' + str(frame_no))
     
