@@ -28,6 +28,9 @@ def plot_boxplot_vs_frame(data, ylabel):
     ax.grid(zorder=0)
     plt.tight_layout()
 
+def convert_frame_time(x):
+    return frame_time_conv[x]
+
 #%% ----- MAIN SCRIPT -----
 # ----- configure directories -----
 # root directory
@@ -35,7 +38,7 @@ dir_root = 'Z:/Experiments/lce_tension'
 # extensions to access sub-directories
 batch_ext = 'lcei_001'
 mts_ext = 'mts_data'
-sample_ext = '001_t05_r00'
+sample_ext = '007_t05_r00'
 gom_ext = 'gom_results'
 cmap_name = 'lajolla' # custom colormap stored in mpl_styles
 
@@ -79,6 +82,10 @@ if load_multiple_frames:
         
 all_frames_df = all_frames_df.dropna(axis = 0)
 
+# add columns with scaled coordinates
+all_frames_df['x_mm'] = all_frames_df['x_pix']*img_scale + all_frames_df['ux']
+all_frames_df['y_mm'] = all_frames_df['y_pix']*img_scale + all_frames_df['uy']
+
 # add Poisson's ratio and time features
 # create time dictionary
 ind_list = np.arange(0,len(frame_list),1)
@@ -90,17 +97,13 @@ frame_time_conv = {}
 for i in range(0,len(frame_list)):
     frame_time_conv[i] = time_list[i]
     
-    
-def convert_frame_time(x):
-    return frame_time_conv[x]
-
 all_frames_df['time'] = all_frames_df['frame'].apply(convert_frame_time)
 
 # create in-plane Poisson's ratio feature
 try: 
-    if orientation = 'vertical':
+    if orientation == 'vertical':
         all_frames_df['nu'] = -1*all_frames_df['Exx']/all_frames_df['Eyy']
-    elif orientation = 'horizontal':
+    elif orientation == 'horizontal':
         all_frames_df['nu'] = -1*all_frames_df['Eyy']/all_frames_df['Exx']
 except:
     print('Specimen orientation not recognized/specified.')
@@ -317,11 +320,18 @@ if load_multiple_frames:
             s = 2, c = c[i-1], edgecolors = ec[i-1], 
             alpha = 0.4, linewidths = 0.5
             )
+
         axs[row,col].set_ylim([0, round(
             all_frames_df[y_var].quantile(0.995),1
             )
-            +0.5
+            +0.4
             ])
+
+        try:
+            if x_var == 'time':
+                axs[row,col].set_xscale('log')
+        except:
+            axs[row,col].set_xscale('linear')
         #axs[row,col].set_xlim([0,len(all_frames_df[dependent_var].unique())+2])
         axs[row,col].set_xlim([0,round(
             all_frames_df[x_var].quantile(0.995),1
