@@ -35,12 +35,19 @@ dir_root = 'Z:/Experiments/lce_tension'
 # extensions to access sub-directories
 batch_ext = 'lcei_001'
 mts_ext = 'mts_data'
-sample_ext = '002_t02_r00'
+sample_ext = '001_t05_r00'
 gom_ext = 'gom_results'
 cmap_name = 'lajolla' # custom colormap stored in mpl_styles
 
+frame_list = np.array([0,5,10,15,20,25,30,35,40,45,50,
+              100,150,200,250,300,350,400,450,500,
+              750,1000,1250,1500,1750,2000,2250,2750,
+              3000,3250,3500,3750, 4000,4250,4500,4750,5000])
+dt = 0.2 # time increment between frames
+
 # load single frames flag
 load_multiple_frames = True
+orientation = 'vertical'
 
 # load in colormap
 cm_data = np.loadtxt('Z:/Python/mpl_styles/'+cmap_name+'.txt')
@@ -51,7 +58,7 @@ dir_xsection = os.path.join(dir_root,batch_ext,sample_ext)
 dir_mts = os.path.join(dir_root,batch_ext,mts_ext,batch_ext+'_'+sample_ext)
 dir_gom_results = os.path.join(dir_root,batch_ext,sample_ext,gom_ext)
 
-img_scale = 0.0106 # image scale (mm/pix)
+img_scale = 0.024 # image scale (mm/pix)
 if load_multiple_frames:
     for i in range(1,35):
         print('Adding frame: '+str(i))
@@ -70,26 +77,33 @@ if load_multiple_frames:
             axis = 0, join = 'outer'
             )
         
-    # filter data to track a specific point
-    x_track, y_track = 320, 875 # pixel coordinates of point to track
-    
-    point_df = all_frames_df[
-        (all_frames_df['x_pix'] == x_track) 
-        & (all_frames_df['y_pix'] == y_track)
-        ]
-
-'''
-# plot stress strain for local point
-point_df.plot.scatter(x = 'Exx', y = 'stress_mpa', s = 8, c = '#4E598D')
-plt.show()
-
-agg_frame_df = all_frames_df.groupby('frame').mean()
-# plot average stress-strain response
-agg_frame_df.plot.scatter(x = 'Exx', y = 'stress_mpa', s = 4, c = '#4E598D')
-plt.show()
-'''
-
 all_frames_df = all_frames_df.dropna(axis = 0)
+
+# add Poisson's ratio and time features
+# create time dictionary
+ind_list = np.arange(0,len(frame_list),1)
+time_list = frame_list*dt
+
+# create frame-time conversion dictionary
+frame_time_conv = {}
+
+for i in range(0,len(frame_list)):
+    frame_time_conv[i] = time_list[i]
+    
+    
+def convert_frame_time(x):
+    return frame_time_conv[x]
+
+all_frames_df['time'] = all_frames_df['frame'].apply(convert_frame_time)
+
+# create in-plane Poisson's ratio feature
+try: 
+    if orientation = 'vertical':
+        all_frames_df['nu'] = -1*all_frames_df['Exx']/all_frames_df['Eyy']
+    elif orientation = 'horizontal':
+        all_frames_df['nu'] = -1*all_frames_df['Eyy']/all_frames_df['Exx']
+except:
+    print('Specimen orientation not recognized/specified.')
 
 #%% ----- EXPLORATORY DATA ANALYSIS -----
 # ----------------------------------------------------------------------------
@@ -101,7 +115,7 @@ frame_range = len(
     )
 
 # set frame range manually
-frame_range = 39
+frame_range = 36
 
 num_img_x = 6
 num_img_y = int(round((frame_range)/num_img_x,0))
@@ -122,7 +136,7 @@ var_to_plot = 'Eyy'
 # loop through range of frames and generate histogram and box plots
 plot_num = 0
 
-for i in range(3,frame_range):
+for i in range(2,frame_range):
     row = int(plot_num/(num_img_x))
     col = plot_num - row*(num_img_x)
     #print(str(row)+', '+str(col)) # check index logic
@@ -151,11 +165,14 @@ for i in range(3,frame_range):
     axs[row,col].set_title('Frame: '+ str(i), fontsize = 5)
     axs[row,col].set_xlabel(var_to_plot, fontsize = 5)
     axs[row,col].grid(True, alpha = 0.5)
-    axs[row,col].set_xlim(
-        [1.05*single_frame_df[var_to_plot].min(),
-         1.05*single_frame_df[var_to_plot].max()
-         ]
-        )
+    # axs[row,col].set_xlim(
+    #     [1.05*single_frame_df[var_to_plot].min(),
+    #      1.05*single_frame_df[var_to_plot].max()
+    #      ]
+    #     )
+    
+    # fix x-axis for all frames
+    axs[row,col].set_xlim([-0.005, 1.6])
     #axs[row,col].set_xlim([0,1.05*single_frame_df['Eyy'].max()])
     axs[row,col].tick_params(labelsize = 5)
     
@@ -236,12 +253,12 @@ plot_boxplot_vs_frame(data_exy, ylabel = 'Exy')
 # ----- filter data into strain ranges based on selected frame -----
 # ----------------------------------------------------------------------------
 # create dataframe for frame used to define coordinates in strain bands 
-mask_frame = 20
+mask_frame = 5
 num_category_bands = 6
-y_var = 'R'
+y_var = 'Eyy'
 x_var = 'frame'
-cat_var = 'Exx'
-num_samples_to_plot = 4000
+cat_var = 'Eyy'
+num_samples_to_plot = 8000
 
 single_frame_df = all_frames_df[all_frames_df['frame'] == mask_frame]
 
@@ -314,7 +331,7 @@ if load_multiple_frames:
         axs[row,col].set_ylabel(y_var)
         axs[row,col].set_xlabel(x_var)
         axs[row,col].grid(True, alpha = 0.5,zorder = 0)
-        if i == num_strain_bands:
+        if i == num_category_bands:
             axs[row,col].set_title(
                 cat_var+'_band: '+'>'+str(round(category_ranges[i-1],1)),
                 fontsize = 5
@@ -422,31 +439,34 @@ else:
 #%% ----- STRESS VS. EXX (STRAIN BANDS) -----
 f = plt.figure(figsize = (3,3))
 ax = f.add_subplot(1,1,1)
+
+cat_var = 'Eyy'
+
 for i in range(4,num_strain_bands+1):
     if i == num_strain_bands:
-        strain_band_df = single_frame_df[
-            single_frame_df['Exx'] >= strain_ranges[i-1]]   
+        category_band_df = single_frame_df[
+            single_frame_df[cat_var] >= category_ranges[i-1]]   
     else:
-        strain_band_df = single_frame_df[(
-            single_frame_df['Exx'] >= strain_ranges[i-1]
+        category_band_df = single_frame_df[(
+            single_frame_df[cat_var] >= category_ranges[i-1]
             ) & (
-            single_frame_df['Exx'] < strain_ranges[i]
+            single_frame_df[cat_var] < category_ranges[i]
             )]
             
     # find all points within that strain range
-    agg_strain_band_df = all_frames_df[
-    all_frames_df.index.isin(strain_band_df.index)]
+    agg_category_band_df = all_frames_df[
+    all_frames_df.index.isin(category_band_df.index)]
     
-    if agg_strain_band_df.shape[0] > 2000:
-        strain_band_sample = agg_strain_band_df.sample(n = 2000, 
+    if agg_category_band_df.shape[0] > 2000:
+        category_band_sample = agg_category_band_df.sample(n = 2000, 
                                                        random_state = 1)
     else:
-        strain_band_sample = agg_strain_band_df.copy()
+        category_band_sample = agg_category_band_df.copy()
     
     # add to plot
     ax.scatter(
-        strain_band_sample['Exx'], 
-        strain_band_sample['stress_mpa'],
+        category_band_sample['Exx'], 
+        category_band_sample['stress_mpa'],
         s = 2, 
         c = c[i-1],
         edgecolors = ec[i-1], 
@@ -468,24 +488,26 @@ legend.get_frame().set_linewidth(0.5)
 #%% ----- OVERLAY STRAIN BAND LOCATIONS ON UNDEFORMED SAMPLE -----
 single_frame_df = all_frames_df[all_frames_df['frame'] == mask_frame]
 
-f = plt.figure(figsize = (5,1.3))
+cat_var = 'Eyy'
+
+f = plt.figure(figsize = (2,5))
 ax = f.add_subplot(1,1,1)
-for i in range(1,num_strain_bands+1):
-    if i == num_strain_bands:
-            strain_band_df = single_frame_df[
-                single_frame_df['Exx'] >= strain_ranges[i-1]]   
+for i in range(0,num_category_bands+1):
+    if i == num_category_bands:
+            category_band_df = single_frame_df[
+                single_frame_df[cat_var] >= category_ranges[i-1]]   
     else:
-        strain_band_df = single_frame_df[(
-            single_frame_df['Exx'] >= strain_ranges[i-1]
+        category_band_df = single_frame_df[(
+            single_frame_df[cat_var] >= category_ranges[i-1]
             ) & (
-            single_frame_df['Exx'] < strain_ranges[i]
+            single_frame_df[cat_var] < category_ranges[i]
             )]
     
-    incl_strain_band_df = all_frames_df[
-        all_frames_df.index.isin(strain_band_df.index)]
+    incl_category_band_df = all_frames_df[
+        all_frames_df.index.isin(category_band_df.index)]
     
     # plot on one figure
-    if i == 1:
+    if i == 0:
         ax.scatter(
             all_frames_df[all_frames_df['frame'] == 1][['x_pix']]*img_scale, 
             all_frames_df[all_frames_df['frame'] == 1][['y_pix']]*img_scale, 
@@ -494,8 +516,8 @@ for i in range(1,num_strain_bands+1):
             )
     else:
         ax.scatter(
-            incl_strain_band_df[incl_strain_band_df['frame'] == 1][['x_pix']]*img_scale, 
-            incl_strain_band_df[incl_strain_band_df['frame'] == 1][['y_pix']]*img_scale, 
+            incl_category_band_df[incl_category_band_df['frame'] == 1][['x_pix']]*img_scale, 
+            incl_category_band_df[incl_category_band_df['frame'] == 1][['y_pix']]*img_scale, 
             s = 1, c = c[i-1], edgecolors = ec[i-1], alpha = 1, 
             linewidths = 0, zorder = i, label = 'Range: '+str(i)
             )
@@ -504,7 +526,7 @@ for i in range(1,num_strain_bands+1):
 ax.grid(True, alpha = 0.5)
 ax.set_xlabel('x (mm)')
 ax.set_ylabel('y (mm)')
-ax.set_xlim([0,15])
+ax.set_xlim([12,19])
 
 # shrink current axes box to place legend overhead with axes labels
 # Shrink current axis's height by 10% on the bottom
@@ -515,8 +537,8 @@ ax.set_position(
     )
 
 legend = ax.legend(
-    fontsize = 3, loc='upper center', ncol=num_strain_bands+1, 
-    bbox_to_anchor=(0.5, 1.12)
+    fontsize = 3, loc='lower left', ncol=1, 
+    bbox_to_anchor=(0, 0.1)
     )
 legend.get_frame().set_linewidth(0.5)
 plt.tight_layout()
