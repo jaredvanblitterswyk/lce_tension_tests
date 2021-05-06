@@ -11,6 +11,7 @@ import sys
 import csv
 import pandas as pd
 import numpy as np
+import json
 import matplotlib as mpl
 import matplotlib.pyplot as plt
 from matplotlib.colors import LinearSegmentedColormap
@@ -68,8 +69,9 @@ dir_root = 'Z:/Experiments/lce_tension'
 # extensions to access sub-directories
 batch_ext = 'lcei_001'
 mts_ext = 'mts_data'
-sample_ext = '007_t02_r00'
+sample_ext = '007_t04_r00'
 gom_ext = 'gom_results'
+orientation = 'vertical'
 
 # define full paths to mts and gom data
 dir_gom_results = os.path.join(dir_root,batch_ext,sample_ext,gom_ext)
@@ -84,6 +86,9 @@ dir_figs_root = os.path.join(dir_gom_results,'figures')
 if not os.path.exists(os.path.join(dir_figs_root,'disp_fields')):
     os.makedirs(os.path.join(dir_figs_root,'disp_fields'))
     
+if not os.path.exists(os.path.join(dir_figs_root,'nu_fields')):
+    os.makedirs(os.path.join(dir_figs_root,'nu_fields'))
+    
 if not os.path.exists(os.path.join(dir_figs_root,'strain_fields')):
     os.makedirs(os.path.join(dir_figs_root,'strain_fields'))
     
@@ -93,11 +98,12 @@ if not os.path.exists(os.path.join(dir_figs_root,'rotation_fields')):
 dir_disp_folder = os.path.join(dir_figs_root,'disp_fields')
 dir_strain_folder = os.path.join(dir_figs_root,'strain_fields')
 dir_rotation_folder = os.path.join(dir_figs_root,'rotation_fields')
+dir_nu_folder = os.path.join(dir_figs_root,'nu_fields')
 
 # ----- define constants -----
 spec_id = batch_ext+'_'+sample_ext # full specimen id
 Ny, Nx = 2448, 2048 # pixel resolution in x, y axis
-img_scale = 0.0132 # mm/pix
+img_scale = 0.0124 # mm/pix
 t = 1.6 # thickness of sample [mm]
 cmap_name = 'lajolla' # custom colormap stored in mpl_styles
 cbar_levels = 25 # colorbar levels
@@ -114,7 +120,7 @@ files_pkl = [f for f in os.listdir(dir_gom_results) if f.endswith('.pkl')]
 #%%
 # load in data
 frame_count = 0
-for i in range(0,50):
+for i in range(0,len(files_pkl)):
     print('Processing frame: '+str(i))
     save_filename = 'results_df_frame_'+"{:02d}".format(i)+'.pkl'
     frame_df = pd.read_pickle(os.path.join(dir_gom_results,save_filename))
@@ -137,49 +143,66 @@ for i in range(0,50):
 all_frames_df['x_mm'] = all_frames_df['x_pix']*img_scale + all_frames_df['ux']
 all_frames_df['y_mm'] = all_frames_df['y_pix']*img_scale + all_frames_df['uy']
 
+# create in-plane Poisson's ratio feature
+try: 
+    if orientation == 'vertical':
+        all_frames_df['nu'] = -1*all_frames_df['Exx']/all_frames_df['Eyy']
+    elif orientation == 'horizontal':
+        all_frames_df['nu'] = -1*all_frames_df['Eyy']/all_frames_df['Exx']
+except:
+    print('Specimen orientation not recognized/specified.')
+
+all_frames_df['nu'] = all_frames_df['nu'].apply(lambda x: x if x >= 0 else 0)
+
 #%% 
 # create dictionary of plot parameters - pass to function
-plot_params = {'figsize': (3,1), 'xlabel': 'x (mm)', 'ylabel': 'y (mm)', 
-               's': 0.01, 'xmin': 0, 'xmax': 28,
-               'ymin': 7, 'ymax': 13,
+plot_params = {'figsize': (2,4), 'xlabel': 'x (mm)', 'ylabel': 'y (mm)', 
+               's': 0.1, 'xmin': 12, 'xmax': 19,
+               'ymin': 0, 'ymax': 25,
                'dpi': 300, 'cmap': custom_map,
                'tight_layout': True, 'hide_labels': False, 'show_fig': False,
                'save_fig': True
                }   
 plot_var_specific = {'Exx': {
-                'vlims': [0, 3.5], 'dir_save_figs': dir_strain_folder
+                'vlims': [-0.5, 0], 'dir_save_figs': dir_strain_folder
               },
               'Eyy': {
-                  'vlims': [-0.4, 0.4], 'dir_save_figs': dir_strain_folder
+                  'vlims': [0, 3.5], 'dir_save_figs': dir_strain_folder
               },
               'Exy': {
-                  'vlims': [-1, 1], 'dir_save_figs': dir_strain_folder
+                  'vlims': [-0.3, 0.3], 'dir_save_figs': dir_strain_folder
               },
               'ux': {
-                  'vlims': [0, 22], 'dir_save_figs': dir_disp_folder
+                  'vlims': [-0.5, 0.5], 'dir_save_figs': dir_disp_folder
               },
               'uy': {
-                  'vlims': [-1.2, 1.2], 'dir_save_figs': dir_disp_folder
+                  'vlims': [0, 8.8], 'dir_save_figs': dir_disp_folder
+              },
+              'uz': {
+                  'vlims': [-2, 2], 'dir_save_figs': dir_disp_folder
               },
               'R': {
-                  'vlims': [-1, 4], 'dir_save_figs': dir_rotation_folder
+                  'vlims': [0, 6], 'dir_save_figs': dir_rotation_folder
               },
               'Reig': {
-                  'vlims': [-1, 4], 'dir_save_figs': dir_rotation_folder
+                  'vlims': [0, 6], 'dir_save_figs': dir_rotation_folder
               },
               'lambda1': {
                   'vlims': [0, 10], 'dir_save_figs': dir_strain_folder
+              },
+              'nu': {
+                  'vlims': [0, 0.5], 'dir_save_figs': dir_nu_folder
               }
               }
 
-for i in range(0,46):
+for i in range(0,len(files_pkl)):
     plt.close('all')
     print('Plotting fields for frame: '+str(i))
-    for j in ['Exx','R', 'Reig']:
+    for j in ['ux','uy','uz','Exx','Eyy','Exy','nu','R']:
         
         # filter data to plot
-        xx = np.array(all_frames_df[all_frames_df['frame'] == i][['x_mm']]) + np.array(all_frames_df[all_frames_df['frame'] == i][['ux']])
-        yy = np.array(all_frames_df[all_frames_df['frame'] == i][['y_mm']]) + np.array(all_frames_df[all_frames_df['frame'] == i][['uy']])
+        xx = np.array(all_frames_df[all_frames_df['frame'] == i][['x_mm']])
+        yy = np.array(all_frames_df[all_frames_df['frame'] == i][['y_mm']])
         zz = np.array(all_frames_df[all_frames_df['frame'] == i][[j]])
         
         # assign variable-specific key:value pairs to plot params dictionary
@@ -194,109 +217,27 @@ for i in range(0,46):
         
         # pass file to function that plots fields to file - lower res to save time initially
         plot_field_contour_save(xx, yy, zz, plot_params)
+        
+# ----- write processing and plot parameters to file -----
+# define output path
+output_filename = batch_ext + '_'+ sample_ext + '_plot_config.json'
+out_path = os.path.join(dir_figs_root,output_filename)
 
-#%%
-# lcei_007_t02_r00 plotparams
-plot_params = {'figsize': (3,1), 'xlabel': 'x (mm)', 'ylabel': 'y (mm)', 
-               's': 0.1, 'xmin': 0, 'xmax': 28,
-               'ymin': 7, 'ymax': 13,
-               'dpi': 300, 'cmap': custom_map,
-               'tight_layout': True, 'hide_labels': False, 'show_fig': False,
-               'save_fig': True
-               }   
-plot_var_specific = {'Exx': {
-                'vlims': [0, 3.5], 'dir_save_figs': dir_strain_folder
-              },
-              'Eyy': {
-                  'vlims': [-0.4, 0.4], 'dir_save_figs': dir_strain_folder
-              },
-              'Exy': {
-                  'vlims': [-1, 1], 'dir_save_figs': dir_strain_folder
-              },
-              'ux': {
-                  'vlims': [0, 22], 'dir_save_figs': dir_disp_folder
-              },
-              'uy': {
-                  'vlims': [-1.2, 1.2], 'dir_save_figs': dir_disp_folder
-              },
-              'R': {
-                  'vlims': [0, 12], 'dir_save_figs': dir_rotation_folder
-              },
-              'Reig': {
-                  'vlims': [0, 6], 'dir_save_figs': dir_rotation_folder
-              },
-              'lambda1': {
-                  'vlims': [0, 10], 'dir_save_figs': dir_strain_folder
-              }
-              }
+# store output in dictionary
+output = []
+output.append(
+    {
+     'Plot_parameters': '', 
+     'img_scale': img_scale, 
+     'thickness': t,
+     'plot_style': 'Z:/Python/mpl_styles/'+cmap_name+'.txt'
+     }
+    )
 
-# lcei_002_t02_r00 plotparams
-plot_params = {'figsize': (3,1), 'xlabel': 'x (mm)', 'ylabel': 'y (mm)', 
-               's': 0.01, 'xmin': 0, 'xmax': 90,
-               'ymin': 21, 'ymax': 29,
-               'dpi': 300, 'cmap': custom_map,
-               'tight_layout': True, 'hide_labels': False, 'show_fig': False,
-               'save_fig': True
-               } 
+# remove colourmap object
+plot_params.pop('cmap', None)
+output.append(plot_params)
+output.append(plot_var_specific)
 
-plot_var_specific = {'Exx': {
-                'vlims': [0, 2.6], 'dir_save_figs': dir_strain_folder
-              },
-              'Eyy': {
-                  'vlims': [-0.3, 0], 'dir_save_figs': dir_strain_folder
-              },
-              'Exy': {
-                  'vlims': [-0.2, 0.2], 'dir_save_figs': dir_strain_folder
-              },
-              'ux': {
-                  'vlims': [0, 36], 'dir_save_figs': dir_disp_folder
-              },
-              'uy': {
-                  'vlims': [-2, 2], 'dir_save_figs': dir_disp_folder
-              },
-              'R': {
-                  'vlims': [-1, 4], 'dir_save_figs': dir_rotation_folder
-              },
-              'Reig': {
-                  'vlims': [-1, 4], 'dir_save_figs': dir_rotation_folder
-              },
-              'lambda1': {
-                  'vlims': [0, 6], 'dir_save_figs': dir_strain_folder
-              }
-              }  
-
-# lcei_002_t02_r00 plotparams - frames 0-28
-# create dictionary of plot parameters - pass to function
-plot_params = {'figsize': (3,1), 'xlabel': 'x (mm)', 'ylabel': 'y (mm)', 
-               's': 0.01, 'xmin': 0, 'xmax': 60,
-               'ymin': 21, 'ymax': 29,
-               'dpi': 300, 'cmap': custom_map,
-               'tight_layout': True, 'hide_labels': False, 'show_fig': False,
-               'save_fig': True
-               } 
-
-plot_var_specific = {'Exx': {
-                'vlims': [0, 1.6], 'dir_save_figs': dir_strain_folder
-              },
-              'Eyy': {
-                  'vlims': [-0.3, 0], 'dir_save_figs': dir_strain_folder
-              },
-              'Exy': {
-                  'vlims': [-0.08, 0.08], 'dir_save_figs': dir_strain_folder
-              },
-              'ux': {
-                  'vlims': [0, 26], 'dir_save_figs': dir_disp_folder
-              },
-              'uy': {
-                  'vlims': [-1.6, 1.6], 'dir_save_figs': dir_disp_folder
-              },
-              'R': {
-                  'vlims': [-1, 4], 'dir_save_figs': dir_rotation_folder
-              },
-              'Reig': {
-                  'vlims': [-1, 4], 'dir_save_figs': dir_rotation_folder
-              },
-              'lambda1': {
-                  'vlims': [0, 4], 'dir_save_figs': dir_strain_folder
-              }
-              }  
+with open(out_path, 'w',  encoding='utf-8') as f:
+    json.dump(output, f, indent=2)
