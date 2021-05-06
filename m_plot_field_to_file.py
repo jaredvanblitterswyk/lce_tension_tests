@@ -58,7 +58,7 @@ def plot_field_contour_save(xx, yy, zz, pp):
 
     # save figure
     if pp['save_fig']:
-        f.savefig(fpath, dpi=pp['dpi'], facecolor='w',
+        f.savefig(pp['fpath'], dpi=pp['dpi'], facecolor='w',
                   edgecolor='w', pad_inches = 0.1
                   )
 
@@ -158,28 +158,28 @@ all_frames_df['nu'] = all_frames_df['nu'].apply(lambda x: x if x >= 0 else 0)
 # create dictionary of plot parameters - pass to function
 plot_params = {'figsize': (2,4), 'xlabel': 'x (mm)', 'ylabel': 'y (mm)', 
                's': 0.1, 'xmin': 12, 'xmax': 19,
-               'ymin': 0, 'ymax': 25,
+               'ymin': 0, 'ymax': 26,
                'dpi': 300, 'cmap': custom_map,
                'tight_layout': True, 'hide_labels': False, 'show_fig': False,
                'save_fig': True
                }   
 plot_var_specific = {'Exx': {
-                'vlims': [-0.5, 0], 'dir_save_figs': dir_strain_folder
+                'vlims': [-0.4, 0], 'dir_save_figs': dir_strain_folder
               },
               'Eyy': {
-                  'vlims': [0, 3.5], 'dir_save_figs': dir_strain_folder
+                  'vlims': [0, 4.2], 'dir_save_figs': dir_strain_folder
               },
               'Exy': {
-                  'vlims': [-0.3, 0.3], 'dir_save_figs': dir_strain_folder
+                  'vlims': [-0.4, 0.4], 'dir_save_figs': dir_strain_folder
               },
               'ux': {
-                  'vlims': [-0.5, 0.5], 'dir_save_figs': dir_disp_folder
+                  'vlims': [-0.6, 0.6], 'dir_save_figs': dir_disp_folder
               },
               'uy': {
-                  'vlims': [0, 8.8], 'dir_save_figs': dir_disp_folder
+                  'vlims': [0, 18], 'dir_save_figs': dir_disp_folder
               },
               'uz': {
-                  'vlims': [-2, 2], 'dir_save_figs': dir_disp_folder
+                  'vlims': [0, 1.2], 'dir_save_figs': dir_disp_folder
               },
               'R': {
                   'vlims': [0, 6], 'dir_save_figs': dir_rotation_folder
