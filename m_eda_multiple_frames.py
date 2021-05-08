@@ -15,7 +15,7 @@ import matplotlib.pyplot as plt
 from matplotlib.colors import LinearSegmentedColormap
 
 #%% Functions
-def plot_boxplot_vs_frame(data, ylabel):
+def plot_boxplot_vs_frame(data, frame_labels, ylabel):
     # plot exx
     f = plt.figure(figsize = (6,3))
     ax = f.add_subplot(1,1,1)
@@ -38,15 +38,22 @@ dir_root = 'Z:/Experiments/lce_tension'
 # extensions to access sub-directories
 batch_ext = 'lcei_001'
 mts_ext = 'mts_data'
-sample_ext = '007_t05_r00'
+sample_ext = '007_t04_r00'
 gom_ext = 'gom_results'
 cmap_name = 'lajolla' # custom colormap stored in mpl_styles
-
+'''
 frame_list = np.array([0,5,10,15,20,25,30,35,40,45,50,
               100,150,200,250,300,350,400,450,500,
               750,1000,1250,1500,1750,2000,2250,2750,
               3000,3250,3500,3750, 4000,4250,4500,4750,5000])
 dt = 0.2 # time increment between frames
+'''
+
+# colour and edge colour arrays (hard coded to 10 or less strain bands)
+ec = ['#003057', '#00313C', '#9E2A2F', '#623412','#284723',
+      '#59315F', '#A45A2A', '#53565A', '#007377', '#453536']
+c = ['#BDD6E6', '#8DB9CA', '#F4C3CC', '#D9B48F', '#9ABEAA',
+     '#C9B1D0', '#F1C6A7', '#C8C9C7', '#88DBDF', '#C1B2B6']
 
 # load single frames flag
 load_multiple_frames = True
@@ -82,10 +89,12 @@ if load_multiple_frames:
         
 all_frames_df = all_frames_df.dropna(axis = 0)
 
+#%% add features
 # add columns with scaled coordinates
 all_frames_df['x_mm'] = all_frames_df['x_pix']*img_scale + all_frames_df['ux']
 all_frames_df['y_mm'] = all_frames_df['y_pix']*img_scale + all_frames_df['uy']
 
+'''
 # add Poisson's ratio and time features
 # create time dictionary
 ind_list = np.arange(0,len(frame_list),1)
@@ -98,7 +107,7 @@ for i in range(0,len(frame_list)):
     frame_time_conv[i] = time_list[i]
     
 all_frames_df['time'] = all_frames_df['frame'].apply(convert_frame_time)
-
+'''
 # create in-plane Poisson's ratio feature
 try: 
     if orientation == 'vertical':
@@ -107,6 +116,16 @@ try:
         all_frames_df['nu'] = -1*all_frames_df['Eyy']/all_frames_df['Exx']
 except:
     print('Specimen orientation not recognized/specified.')
+'''    
+# ---- TO DO: categorize as strain decreasing or increasing -----
+trunc_all_frames_df = all_frames_df[all_frames_df['frame'] >= 5]
+baseline_df = trunc_all_frames_df[trunc_all_frames_df['frame'] == 5]['Eyy']
+
+trunc_all_frames_df = trunc_all_frames_df.reset_index()
+test = all_frames_df[['Eyy']].groupby(level=0).mean()
+
+# extract only points in first frame, assign feature to that df only - avoids need to add feature to all frames
+'''
 
 #%% ----- EXPLORATORY DATA ANALYSIS -----
 # ----------------------------------------------------------------------------
@@ -118,7 +137,7 @@ frame_range = len(
     )
 
 # set frame range manually
-frame_range = 36
+frame_range = 35
 
 num_img_x = 6
 num_img_y = int(round((frame_range)/num_img_x,0))
@@ -175,8 +194,7 @@ for i in range(2,frame_range):
     #     )
     
     # fix x-axis for all frames
-    axs[row,col].set_xlim([-0.005, 1.6])
-    #axs[row,col].set_xlim([0,1.05*single_frame_df['Eyy'].max()])
+    axs[row,col].set_xlim([0,1.05*single_frame_df['Eyy'].max()])
     axs[row,col].tick_params(labelsize = 5)
     
     # extract ylims of plot for annotations
@@ -247,19 +265,59 @@ else:
 
 # ----- generate box plots -----
 mpl.rcParams['lines.marker']=''
-plot_boxplot_vs_frame(data_exx, ylabel = 'Exx')
-plot_boxplot_vs_frame(data_eyy, ylabel = 'Eyy')
-plot_boxplot_vs_frame(data_exy, ylabel = 'Exy')
+plot_boxplot_vs_frame(data_exx, frame_labels, ylabel = 'Exx')
+plot_boxplot_vs_frame(data_eyy, frame_labels, ylabel = 'Eyy')
+plot_boxplot_vs_frame(data_exy, frame_labels, ylabel = 'Exy')
+
+#%% ----- Plot global stress-strain curve -----
+all_frames_df['lambda_y'] = all_frames_df[['Eyy']].apply(lambda x: np.sqrt(2*x+1))
+x = all_frames_df.groupby('frame')['lambda_y'].mean()
+y = all_frames_df.groupby('frame')['stress_mpa'].mean()
+
+f = plt.figure(figsize = (6,3))
+ax = f.add_subplot(1,1,1)
+ax.scatter(x = x, y = y, s = 2, c = c[0], edgecolors = ec[0], 
+        linewidths = 0.5 )
+ax.set_xlabel('$\lambda_y$ (Avg. Field)')
+ax.set_ylabel('Eng. Stress (MPa)')
+ax.grid(zorder=0)
+plt.tight_layout()
+plt.show()
+
+#%% ----- Plot stress-strain curves for points in view for full test -----
+end_frame = 30
+
+# find all points within that strain range
+last_frame_pts = all_frames_df[all_frames_df['frame'] == end_frame]
+
+all_frames = all_frames_df.copy()
+
+pts_in_all_frames_df = all_frames[
+all_frames.index.isin(last_frame_pts.index)]
+
+pts_in_all_frames_df['lambda_y'] = pts_in_all_frames_df[['Eyy']].apply(lambda x: np.sqrt(2*x+1))
+x_1 = pts_in_all_frames_df.groupby('frame')['Eyy'].mean()
+y_1 = pts_in_all_frames_df.groupby('frame')['stress_mpa'].mean()
+
+f = plt.figure(figsize = (6,3))
+ax = f.add_subplot(1,1,1)
+ax.scatter(x = x_1, y = y_1, s = 2, c = c[0], edgecolors = ec[0], 
+        linewidths = 0.5 )
+ax.set_xlabel('Eyy (Avg. Field)')
+ax.set_ylabel('Eng. Stress (MPa)')
+ax.grid(zorder=0)
+plt.tight_layout()
+plt.show()
 
 #%%
 # ----------------------------------------------------------------------------
 # ----- filter data into strain ranges based on selected frame -----
 # ----------------------------------------------------------------------------
 # create dataframe for frame used to define coordinates in strain bands 
-mask_frame = 5
+mask_frame = 9
 num_category_bands = 6
-y_var = 'Eyy'
-x_var = 'frame'
+y_var = 'nu'
+x_var = 'Eyy'
 cat_var = 'Eyy'
 num_samples_to_plot = 8000
 
@@ -451,9 +509,10 @@ f = plt.figure(figsize = (3,3))
 ax = f.add_subplot(1,1,1)
 
 cat_var = 'Eyy'
+plot_var = 'Eyy'
 
-for i in range(4,num_strain_bands+1):
-    if i == num_strain_bands:
+for i in range(1,num_category_bands+1):
+    if i == num_category_bands:
         category_band_df = single_frame_df[
             single_frame_df[cat_var] >= category_ranges[i-1]]   
     else:
@@ -467,15 +526,15 @@ for i in range(4,num_strain_bands+1):
     agg_category_band_df = all_frames_df[
     all_frames_df.index.isin(category_band_df.index)]
     
-    if agg_category_band_df.shape[0] > 2000:
-        category_band_sample = agg_category_band_df.sample(n = 2000, 
+    if agg_category_band_df.shape[0] > 4000:
+        category_band_sample = agg_category_band_df.sample(n = 4000, 
                                                        random_state = 1)
     else:
         category_band_sample = agg_category_band_df.copy()
     
     # add to plot
     ax.scatter(
-        category_band_sample['Exx'], 
+        category_band_sample[plot_var], 
         category_band_sample['stress_mpa'],
         s = 2, 
         c = c[i-1],
@@ -485,15 +544,17 @@ for i in range(4,num_strain_bands+1):
         label = 'strain_band: '+str(i)
         )
     
-    ax.set_xlim([0,round(all_frames_df['Exx'].max(),1)+0.5])
-    ax.set_ylim([0,round(all_frames_df['stress_mpa'].max(),1)+0.05])
+    # ax.set_xlim([0,round(all_frames_df[plot_var].max(),1)+0.5])
+    ax.set_xlim([0,3.6])
+    ax.set_ylim([0,round(all_frames_df['stress_mpa'].max(),1)+0.02])
     ax.grid(True, alpha = 0.5,zorder = 0)
-    ax.set_xlabel('Exx')
+    ax.set_xlabel('Eyy')
     ax.set_ylabel('Stress (Mpa)')
 plt.legend(loc='upper left', fontsize = 4)
 
 legend = ax.legend(fontsize = 4)
 legend.get_frame().set_linewidth(0.5)
+plt.tight_layout()
 
 #%% ----- OVERLAY STRAIN BAND LOCATIONS ON UNDEFORMED SAMPLE -----
 single_frame_df = all_frames_df[all_frames_df['frame'] == mask_frame]
@@ -547,7 +608,7 @@ ax.set_position(
     )
 
 legend = ax.legend(
-    fontsize = 3, loc='lower left', ncol=1, 
+    fontsize = 3, loc='upper right', ncol=1, 
     bbox_to_anchor=(0, 0.1)
     )
 legend.get_frame().set_linewidth(0.5)
@@ -570,13 +631,14 @@ for i in range(1,frame_range):
                alpha = 0.4,
                linewidths = 0.5)
 
-ax.set_xlim([0,round(all_frames_df['Exx'].max(),1)-1])
+ax.set_xlim([0,round(all_frames_df['Eyy'].max(),1)-1])
 ax.set_ylim([0,round(all_frames_df['stress_mpa'].max(),1)-0.05])
 ax.grid(True, alpha = 0.5,zorder = 0)
-ax.set_xlabel('Exx')
+ax.set_xlabel('Eyy')
 ax.set_ylabel('Stress (Mpa)')
 
 #%% ----- Plot 3D SCATTER (STRAIN COMPONENTS VS ROTATION) ---
+'''
 all_frames_df['x_mm'] = all_frames_df['x_pix']*img_scale + all_frames_df['ux']
 all_frames_df['y_mm'] = all_frames_df['y_pix']*img_scale + all_frames_df['uy']
 
@@ -614,6 +676,7 @@ ax.set_title('Frame 20')
 f.colorbar(scttr, ax = ax, shrink = 0.5, aspect = 10)
 plt.tight_layout()
 plt.show()
+'''
 
 #%% ----- EXX VS EYY (CHECK COMPRESSIBILITY) -----
 
@@ -621,11 +684,11 @@ plt.show()
 # ----- filter data into strain ranges based on selected frame -----
 # ----------------------------------------------------------------------------
 # --- plot setup ---
-mask_frame = 20
+mask_frame = 9
 num_category_bands = 6
-y_var = 'Eyy'
-x_var = 'Exx'
-cat_var = 'Exx'
+y_var = 'Exx'
+x_var = 'Eyy'
+cat_var = 'Eyy'
 num_samples_to_plot = 4000
 
 # colour and edge colour arrays (hard coded to 10 or less strain bands)
@@ -634,8 +697,9 @@ ec = ['#003057', '#00313C', '#9E2A2F', '#623412','#284723',
 c = ['#BDD6E6', '#8DB9CA', '#F4C3CC', '#D9B48F', '#9ABEAA',
      '#C9B1D0', '#F1C6A7', '#C8C9C7', '#88DBDF', '#C1B2B6']
 
-x_fit = np.linspace(0,2.8,500)
-y_fit = 0.5*(1/np.sqrt(1+2*x_fit) - 1)
+x_fit = np.linspace(0,3,500) # Eyy
+y_fit_1 = 0.5*(1/(2*x_fit+1) - 1)
+y_fit_2 = 0.5*(1/np.sqrt(1+2*x_fit) - 1)
 
 num_img_x = 1
 num_img_y = 1
@@ -654,7 +718,7 @@ category_ranges = np.linspace(
 fig, axs = plt.subplots(num_img_x, num_img_y, figsize=(3,3),
                         sharey=True, tight_layout=True)
 
-for i in range(4,num_category_bands+1):
+for i in range(1,num_category_bands+1):
 
     if i == num_category_bands:
         category_band_df = single_frame_df[
@@ -697,14 +761,19 @@ for i in range(4,num_category_bands+1):
         +0.5
         ])
     '''
+    axs.set_ylim([-0.45,0])
+    axs.set_xlim([0,3.6])
     axs.set_ylabel(y_var)
     axs.set_xlabel(x_var)
     axs.grid(True, alpha = 0.5,zorder = 0)  
 
 # compare against incompressible relationship    
-axs.scatter(
-    x_fit, y_fit, s = 0.5, c = 'k', edgecolors = 'k', 
-    alpha = 1.0, label = 'Incompressible')
+axs.plot(
+    x_fit, y_fit_1, linewidth = 0.5, linestyle = '--', c = 'k',  
+    alpha = 1.0, label = '$\lambda_x = \lambda_y^{-1}$')
+axs.plot(
+    x_fit, y_fit_2, linewidth = 0.5, linestyle = '-', c = 'k', 
+    alpha = 1.0, label = '$\lambda_x = \lambda_y^{-1/2}$')
 
 # add legend
 plt.legend(loc='upper right', fontsize = 4)
