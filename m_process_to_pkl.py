@@ -239,7 +239,7 @@ dir_root_local = 'C:/Users/jcv/Documents'
 # extensions to access sub-directories
 batch_ext = 'lcei_001'
 mts_ext = 'mts_data'
-sample_ext = '003_t04_r00'
+sample_ext = '007_t09_r00'
 gom_ext = 'gom_results'
 
 # define full paths to mts and gom data
@@ -253,7 +253,7 @@ except:
 # ----- define constants -----
 spec_id = batch_ext+'_'+sample_ext # full specimen id
 Nx, Ny = 2448, 2048 # pixel resolution in x, y axis
-img_scale = 0.0127 # mm/pix
+img_scale = 0.01248 # mm/pix
 t = 1.6 # thickness of sample [mm]
 orientation = 'vertical'
 cmap_name = 'lajolla' # custom colormap stored in mpl_styles
@@ -319,9 +319,9 @@ def plot_rotation_field(x,y,Rij, frame_no):
 disp_labels = ['ux', 'uy', 'uz']
 strain_labels = ['Exx', 'Eyy', 'Exy']
  
-for i in range(0,len(files_gom)):
+for i in range(len(files_gom)-1,len(files_gom)):
     # extract frame number and display
-    frame_no = files_gom[i][21:-10] # lcei_001_006_t02_r00
+    frame_no = files_gom[i][28:-10] # lcei_001_006_t02_r00
     #frame_no = files_gom[i][35:-10] 
     print('Processing frame:' + str(frame_no))
     
@@ -364,7 +364,7 @@ for i in range(0,len(files_gom)):
     # drop rows with no cross-section listed
     results_df = results_df.dropna(axis=0, how = 'any')
     
-    save_filename = 'results_df_frame_'+str(frame_no)+'.pkl'
+    save_filename = 'results_df_frame_' + '{:02d}'.format(str(frame_no)) + '.pkl'
     results_df.to_pickle(os.path.join(dir_gom_results,save_filename))
 
 #%% ===== INTERPOLATION DEBUGGING CODE =====
