@@ -40,9 +40,32 @@ def create_simple_scatter(x, y, plot_params, c, ec):
     ax.set_xlabel(plot_params['xlabel'])
     ax.set_ylabel(plot_params['ylabel'])
     ax.grid(zorder=0)
+    if plot_params['log_x']:
+        ax.set_xscale('log')
+    
     if plot_params['tight_layout']:
         plt.tight_layout()
     plt.show()
+    
+def extract_mts_data(file_path, files, col_dtypes, columns):
+    # import csv file
+    mts_df = pd.read_csv(os.path.join(file_path,files[0]),skiprows = 5,
+                         header = 1)
+    # set dataframe columns
+    mts_df.columns = columns
+    # drop index with units
+    mts_df = mts_df.drop(axis = 0, index = 0)
+    # set to numeric dtype
+    mts_df = mts_df.astype(col_dtypes)
+    
+    # filter based on trigger value and drop unneeded columns
+    cam_trig_df = mts_df[mts_df['trigger'] > 0].drop(['trigger',
+                                                      'cam_44','cam_43',
+                                                      'trig_arduino'],
+                                                     axis = 1)
+
+    # return data at every nth frame    
+    return cam_trig_df
 
 #%% ----- MAIN SCRIPT -----
 # ----------------------------------------------------------------------------
@@ -53,21 +76,24 @@ dir_root = 'Z:/Experiments/lce_tension'
 # extensions to access sub-directories
 batch_ext = 'lcei_001'
 mts_ext = 'mts_data'
-sample_ext = '007_t08_r00'
+sample_ext = '007_t09_r00'
 gom_ext = 'gom_results'
 cmap_name = 'lajolla' # custom colormap stored in mpl_styles
-
-frame_list = np.array([0,5,10,15,20,25,30,35,40,45,50,
-              100,150,200,250,300,350,400,450,500,
-              750,1000,1250,1500,1750,2000,2250,2750,
-              3000,3250,3500,3750, 4000,4250,4500,4750,5000])
-dt = 0.2 # time increment between frames
+frames_list_filename = batch_ext+'_'+sample_ext+'_frames_list.csv'
+mts_columns = ['time', 'crosshead', 'load', 'trigger', 'cam_44', 'cam_43', 'trig_arduino']
+mts_col_dtypes = {'time':'float',
+              'crosshead':'float', 
+              'load':'float',
+              'trigger': 'int64',
+              'cam_44': 'int64',
+              'cam_43': 'int64',
+              'trig_arduino': 'int64'}
 
 # load single frames flag
 load_multiple_frames = True
 orientation = 'vertical'
 # set frame range manually for plotting
-frame_range = 35
+frame_range = 38
 mask_frame = 9
 img_scale = 0.01248 # image scale (mm/pix)
 
@@ -92,43 +118,86 @@ dir_gom_results = os.path.join(dir_root,batch_ext,sample_ext,gom_ext)
 num_frames = len(
     [f for f in os.listdir(dir_gom_results) if f.endswith('.pkl')]
     )
+
+# collect mts data file
+files_mts = [f for f in os.listdir(dir_mts) if f.endswith('.csv')]
+#%% ----- LOAD DATA -----
 # ----------------------------------------------------------------------------
-# ----- load in data to dataframe -----
+# ----- load in DIC to dataframe -----
 # ----------------------------------------------------------------------------
 if load_multiple_frames:
     for i in range(1,42):
         print('Adding frame: '+str(i))
         save_filename = 'results_df_frame_' + '{:02d}'.format(i) + '.pkl'
-        frame_df = pd.read_pickle(os.path.join(dir_gom_results,save_filename))
-        
-        # add time stamp to frame to allow for sorting later
-        frame_df['frame'] = i*np.ones((frame_df.shape[0],))
-        
-        if i == 1:
-            # create empty data frame to store all values from each frame
-            all_frames_df = pd.DataFrame(columns = frame_df.columns)
-        
-        all_frames_df = pd.concat(
-            [all_frames_df, frame_df], 
-            axis = 0, join = 'outer'
-            )
+        try:
+            frame_df = pd.read_pickle(os.path.join(dir_gom_results,save_filename))
+            
+            # add time stamp to frame to allow for sorting later
+            frame_df['frame'] = i*np.ones((frame_df.shape[0],))
+            
+            if i == 1:
+                # create empty data frame to store all values from each frame
+                all_frames_df = pd.DataFrame(columns = frame_df.columns)
+            
+            all_frames_df = pd.concat(
+                [all_frames_df, frame_df], 
+                axis = 0, join = 'outer'
+                )
+        except:
+            print('File not found or loaded succesfully.')
         
 all_frames_df = all_frames_df.dropna(axis = 0)
 
-#%% ADD FEATURES
 # ----------------------------------------------------------------------------
-# add columns with scaled coordinates
+# ----- load in MTS data and frame lists to dataframes -----
+# ----------------------------------------------------------------------------
+
+try:
+    mts_df = extract_mts_data(dir_mts, files_mts, mts_col_dtypes, 
+                                mts_columns)
+    # reset index
+    mts_df = mts_df.reset_index(drop=True)
+except:
+    print('No file containing mts measurements found.')
+    
+try:
+    frames_list = pd.read_csv(os.path.join(dir_xsection,frames_list_filename))
+except:
+    print('Frames list was not found/loaded.')
+    
+mts_df = mts_df[mts_df.index.isin(frames_list['Frame list'])]
+mts_df = mts_df.reset_index(drop=True)
+
+# create dictionary of frame-time mapping from mts_df
+time_mapping = mts_df.iloc[:,0].to_dict()
+
+#%% ----- ADD FEATURES -----
+# ----------------------------------------------------------------------------
+# ----- add columns with scaled coordinates -----
+# ----------------------------------------------------------------------------
 all_frames_df['x_mm'] = all_frames_df['x_pix']*img_scale + all_frames_df['ux']
 all_frames_df['y_mm'] = all_frames_df['y_pix']*img_scale + all_frames_df['uy']
 
-# calculate axial stretch from Green-Lagrange strain fields
+# ----------------------------------------------------------------------------
+# ----- calculate axial stretch from Green-Lagrange strain fields ----
+# ----------------------------------------------------------------------------
 all_frames_df['lambda_y'] = all_frames_df[['Eyy']].apply(lambda x: np.sqrt(2*x+1))
 
+# ----------------------------------------------------------------------------
+# -----create dataframe of points in frame used for clustering -----
+# ----------------------------------------------------------------------------
+mask_frame_df = all_frames_df[all_frames_df['frame'] == mask_frame]
+
+# ----------------------------------------------------------------------------
+# add time to dataframe based on time mapping
+# ----------------------------------------------------------------------------
+all_frames_df['time'] = all_frames_df['frame'].map(time_mapping)
+
+# ----------------------------------------------------------------------------
 # ----- keep points appearing in all frames in a separate df -----
+# ----------------------------------------------------------------------------
 # manually define last frame where all points still in FOV
 end_frame = 30
-
-# find all points within that strain range
 last_frame_pts = all_frames_df[all_frames_df['frame'] == end_frame]
 
 all_frames = all_frames_df.copy()
@@ -137,24 +206,9 @@ all_frames = all_frames_df.copy()
 pts_in_all_frames_df = all_frames[
 all_frames.index.isin(last_frame_pts.index)]
 
-# create dataframe of points in frame used for clustering
-mask_frame_df = all_frames_df[all_frames_df['frame'] == mask_frame]
-
-'''
-# add Poisson's ratio and time features
-# create time dictionary
-ind_list = np.arange(0,len(frame_list),1)
-time_list = frame_list*dt
-
-# create frame-time conversion dictionary
-frame_time_conv = {}
-
-for i in range(0,len(frame_list)):
-    frame_time_conv[i] = time_list[i]
-    
-all_frames_df['time'] = all_frames_df['frame'].apply(convert_frame_time)
-'''
-# create in-plane Poisson's ratio feature
+# ----------------------------------------------------------------------------
+# ----- create in-plane Poisson's ratio feature -----
+# ---------------------------------------------------------------------------
 try: 
     if orientation == 'vertical':
         all_frames_df['nu'] = -1*all_frames_df['Exx']/all_frames_df['Eyy']
@@ -162,6 +216,7 @@ try:
         all_frames_df['nu'] = -1*all_frames_df['Eyy']/all_frames_df['Exx']
 except:
     print('Specimen orientation not recognized/specified.')
+    
 '''    
 # ---- TO DO: categorize as strain decreasing or increasing -----
 trunc_all_frames_df = all_frames_df[all_frames_df['frame'] >= 5]
@@ -333,14 +388,15 @@ plot_params = {'figsize': (6,3),
                'linewidth': 0.5,
                'xlabel': '$\lambda_y$ (Avg. Field)',
                'ylabel': 'Eng. Stress (MPa)',
-               'tight_layout': True}
+               'tight_layout': True,
+               'log_x': True}
 
 create_simple_scatter(x, y, plot_params, c, ec)
 
 #%% ----- Plot stress-strain curves for points in view for full test -----
 # ----------------------------------------------------------------------------
 # assign x and y to vars for brevity
-x_1 = pts_in_all_frames_df.groupby('frame')['Eyy'].mean()
+x_1 = pts_in_all_frames_df.groupby('frame')['time'].mean()
 y_1 = pts_in_all_frames_df.groupby('frame')['stress_mpa'].mean()
 # ----------------------------------------------------------------------------
 # ----- create figure -----
@@ -348,9 +404,10 @@ y_1 = pts_in_all_frames_df.groupby('frame')['stress_mpa'].mean()
 plot_params = {'figsize': (6,3),
                'm_size': 2,
                'linewidth': 0.5,
-               'xlabel': 'Eyy (Avg. Field)',
+               'xlabel': 'Time (s)',
                'ylabel': 'Eng. Stress (MPa)',
-               'tight_layout': True}
+               'tight_layout': True,
+               'log_x': True}
 
 create_simple_scatter(x_1, y_1, plot_params, c, ec)
 
@@ -360,7 +417,7 @@ create_simple_scatter(x_1, y_1, plot_params, c, ec)
 # ----------------------------------------------------------------------------
 num_category_bands = 6
 y_var = 'Eyy'
-x_var = 'frame'
+x_var = 'time'
 cat_var = 'Eyy'
 num_samples_to_plot = 8000
 
@@ -376,7 +433,7 @@ min_category_band = round(mask_frame_df[cat_var].min(),1)
 category_ranges = np.linspace(min_category_band, max_category_band, num_category_bands)
 
 # compute average Green-Lagrange strain for points in all frames
-avg_strain = pts_in_all_frames_df.groupby('frame')['Eyy'].mean()
+avg_strain = pts_in_all_frames_df.groupby(x_var)['Eyy'].mean()
 # ----------------------------------------------------------------------------
 # ----- create figure -----
 # ----------------------------------------------------------------------------
@@ -459,12 +516,19 @@ if load_multiple_frames:
                 fontsize = 5
                 )
     
-        # add line showning mean of field at each frame
-        axs[row,col].axvline(mask_frame, linestyle='dashed', 
-                             linewidth=0.4, marker = '')
-    
         _, max_ylim = plt.ylim()
-        axs[row,col].text(mask_frame*1.1, max_ylim*0.8,
+        if x_var == 'time':
+            # add line showning mean of field at each frame
+            axs[row,col].axvline(time_mapping[mask_frame], linestyle='dashed', 
+                     linewidth=0.4, marker = '')
+            axs[row,col].text(time_mapping[mask_frame]*1.1, max_ylim*0.8,
+                  'Mask frame: {:.0f}'.format(time_mapping[mask_frame])+ ' s',
+                  fontsize = 4)
+        else:
+            # add line showning mean of field at each frame
+            axs[row,col].axvline(mask_frame, linestyle='dashed', 
+                             linewidth=0.4, marker = '')
+            axs[row,col].text(mask_frame*1.1, max_ylim*0.8,
                           'Mask frame: {:.0f}'.format(mask_frame),
                           fontsize = 4)
     
