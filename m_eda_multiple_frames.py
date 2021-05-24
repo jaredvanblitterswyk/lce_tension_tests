@@ -31,23 +31,45 @@ def plot_boxplot_vs_frame(data, frame_labels, ylabel):
 def convert_frame_time(x):
     return frame_time_conv[x]
 
+def create_simple_scatter(x, y, plot_params, c, ec):
+    f = plt.figure(figsize = plot_params['figsize'])
+    ax = f.add_subplot(1,1,1)
+    ax.scatter(x = x, y = y, s = plot_params['m_size'], 
+               c = c[0], edgecolors = ec[0], 
+               linewidths = plot_params['linewidth'])
+    ax.set_xlabel(plot_params['xlabel'])
+    ax.set_ylabel(plot_params['ylabel'])
+    ax.grid(zorder=0)
+    if plot_params['tight_layout']:
+        plt.tight_layout()
+    plt.show()
+
 #%% ----- MAIN SCRIPT -----
-# ----- configure directories -----
+# ----------------------------------------------------------------------------
+# ----- configure directories, plot colors and constants -----
+# ----------------------------------------------------------------------------
 # root directory
 dir_root = 'Z:/Experiments/lce_tension'
 # extensions to access sub-directories
 batch_ext = 'lcei_001'
 mts_ext = 'mts_data'
-sample_ext = '007_t04_r00'
+sample_ext = '007_t08_r00'
 gom_ext = 'gom_results'
 cmap_name = 'lajolla' # custom colormap stored in mpl_styles
-'''
+
 frame_list = np.array([0,5,10,15,20,25,30,35,40,45,50,
               100,150,200,250,300,350,400,450,500,
               750,1000,1250,1500,1750,2000,2250,2750,
               3000,3250,3500,3750, 4000,4250,4500,4750,5000])
 dt = 0.2 # time increment between frames
-'''
+
+# load single frames flag
+load_multiple_frames = True
+orientation = 'vertical'
+# set frame range manually for plotting
+frame_range = 35
+mask_frame = 9
+img_scale = 0.01248 # image scale (mm/pix)
 
 # colour and edge colour arrays (hard coded to 10 or less strain bands)
 ec = ['#003057', '#00313C', '#9E2A2F', '#623412','#284723',
@@ -55,22 +77,26 @@ ec = ['#003057', '#00313C', '#9E2A2F', '#623412','#284723',
 c = ['#BDD6E6', '#8DB9CA', '#F4C3CC', '#D9B48F', '#9ABEAA',
      '#C9B1D0', '#F1C6A7', '#C8C9C7', '#88DBDF', '#C1B2B6']
 
-# load single frames flag
-load_multiple_frames = True
-orientation = 'vertical'
-
 # load in colormap
 cm_data = np.loadtxt('Z:/Python/mpl_styles/'+cmap_name+'.txt')
 custom_map = LinearSegmentedColormap.from_list('custom', cm_data)
+
+# define custom plot style
+plt.style.use('Z:/Python/mpl_styles/stg_plot_style_1.mplstyle')
 
 # define full paths to mts and gom data
 dir_xsection = os.path.join(dir_root,batch_ext,sample_ext)
 dir_mts = os.path.join(dir_root,batch_ext,mts_ext,batch_ext+'_'+sample_ext)
 dir_gom_results = os.path.join(dir_root,batch_ext,sample_ext,gom_ext)
 
-img_scale = 0.024 # image scale (mm/pix)
+num_frames = len(
+    [f for f in os.listdir(dir_gom_results) if f.endswith('.pkl')]
+    )
+# ----------------------------------------------------------------------------
+# ----- load in data to dataframe -----
+# ----------------------------------------------------------------------------
 if load_multiple_frames:
-    for i in range(1,35):
+    for i in range(1,42):
         print('Adding frame: '+str(i))
         save_filename = 'results_df_frame_' + '{:02d}'.format(i) + '.pkl'
         frame_df = pd.read_pickle(os.path.join(dir_gom_results,save_filename))
@@ -89,10 +115,30 @@ if load_multiple_frames:
         
 all_frames_df = all_frames_df.dropna(axis = 0)
 
-#%% add features
+#%% ADD FEATURES
+# ----------------------------------------------------------------------------
 # add columns with scaled coordinates
 all_frames_df['x_mm'] = all_frames_df['x_pix']*img_scale + all_frames_df['ux']
 all_frames_df['y_mm'] = all_frames_df['y_pix']*img_scale + all_frames_df['uy']
+
+# calculate axial stretch from Green-Lagrange strain fields
+all_frames_df['lambda_y'] = all_frames_df[['Eyy']].apply(lambda x: np.sqrt(2*x+1))
+
+# ----- keep points appearing in all frames in a separate df -----
+# manually define last frame where all points still in FOV
+end_frame = 30
+
+# find all points within that strain range
+last_frame_pts = all_frames_df[all_frames_df['frame'] == end_frame]
+
+all_frames = all_frames_df.copy()
+
+# keep only points that appear in last frame
+pts_in_all_frames_df = all_frames[
+all_frames.index.isin(last_frame_pts.index)]
+
+# create dataframe of points in frame used for clustering
+mask_frame_df = all_frames_df[all_frames_df['frame'] == mask_frame]
 
 '''
 # add Poisson's ratio and time features
@@ -128,25 +174,14 @@ test = all_frames_df[['Eyy']].groupby(level=0).mean()
 '''
 
 #%% ----- EXPLORATORY DATA ANALYSIS -----
-# ----------------------------------------------------------------------------
 # ----- plot histogram and box plot of strain for each frame -----
 # ----------------------------------------------------------------------------
+# ----- initialize plot vars -----
+# ----------------------------------------------------------------------------
 n_bins = 20
-frame_range = len(
-    [f for f in os.listdir(dir_gom_results) if f.endswith('.pkl')]
-    )
-
-# set frame range manually
-frame_range = 35
 
 num_img_x = 6
 num_img_y = int(round((frame_range)/num_img_x,0))
-
-# define custom plot style
-plt.style.use('Z:/Python/mpl_styles/stg_plot_style_1.mplstyle')
-fig, axs = plt.subplots(num_img_y, num_img_x, sharey=True, tight_layout=True)
-    
-row, col = 0, 0 # current row and column number for plotting
 
 # create list of arrays with strain values at each frame for boxplots
 data_exx = []
@@ -155,6 +190,13 @@ data_exy = []
 
 var_to_plot = 'Eyy'
 
+# initialize row and column index counters
+row, col = 0, 0
+# ----------------------------------------------------------------------------
+# ----- create figure -----
+# ----------------------------------------------------------------------------
+fig, axs = plt.subplots(num_img_y, num_img_x, sharey=True, tight_layout=True)
+    
 # loop through range of frames and generate histogram and box plots
 plot_num = 0
 
@@ -187,11 +229,11 @@ for i in range(2,frame_range):
     axs[row,col].set_title('Frame: '+ str(i), fontsize = 5)
     axs[row,col].set_xlabel(var_to_plot, fontsize = 5)
     axs[row,col].grid(True, alpha = 0.5)
-    # axs[row,col].set_xlim(
-    #     [1.05*single_frame_df[var_to_plot].min(),
-    #      1.05*single_frame_df[var_to_plot].max()
-    #      ]
-    #     )
+    axs[row,col].set_xlim(
+        [1.05*single_frame_df[var_to_plot].min(),
+          1.05*single_frame_df[var_to_plot].max()
+          ]
+        )
     
     # fix x-axis for all frames
     axs[row,col].set_xlim([0,1.05*single_frame_df['Eyy'].max()])
@@ -238,6 +280,13 @@ for i in range(2,frame_range):
 plt.show()
 
 #%% ----- Generate Box Plots -----
+# ----------------------------------------------------------------------------
+# ----- compute plot specific quantities -----
+# ----------------------------------------------------------------------------
+data_exx = []
+data_eyy = []
+data_exy = []
+
 # if loading all frames at once, aggregate strain data into list for plotting
 if load_multiple_frames: 
     frame_labels = all_frames_df['frame'].unique().astype(int).astype(str)
@@ -262,84 +311,77 @@ if load_multiple_frames:
 else:
     # data aggregation already complete, just calculate frame labels
     frame_labels = np.linspace(1, frame_range, frame_range).astype(int).astype(str)
-
+    
+# ----------------------------------------------------------------------------
 # ----- generate box plots -----
+# ----------------------------------------------------------------------------
 mpl.rcParams['lines.marker']=''
 plot_boxplot_vs_frame(data_exx, frame_labels, ylabel = 'Exx')
 plot_boxplot_vs_frame(data_eyy, frame_labels, ylabel = 'Eyy')
 plot_boxplot_vs_frame(data_exy, frame_labels, ylabel = 'Exy')
 
 #%% ----- Plot global stress-strain curve -----
-all_frames_df['lambda_y'] = all_frames_df[['Eyy']].apply(lambda x: np.sqrt(2*x+1))
+# ----------------------------------------------------------------------------
+# assign x and y to vars for brevity
 x = all_frames_df.groupby('frame')['lambda_y'].mean()
 y = all_frames_df.groupby('frame')['stress_mpa'].mean()
+# ----------------------------------------------------------------------------
+# ----- create figure -----
+# ----------------------------------------------------------------------------
+plot_params = {'figsize': (6,3),
+               'm_size': 2,
+               'linewidth': 0.5,
+               'xlabel': '$\lambda_y$ (Avg. Field)',
+               'ylabel': 'Eng. Stress (MPa)',
+               'tight_layout': True}
 
-f = plt.figure(figsize = (6,3))
-ax = f.add_subplot(1,1,1)
-ax.scatter(x = x, y = y, s = 2, c = c[0], edgecolors = ec[0], 
-        linewidths = 0.5 )
-ax.set_xlabel('$\lambda_y$ (Avg. Field)')
-ax.set_ylabel('Eng. Stress (MPa)')
-ax.grid(zorder=0)
-plt.tight_layout()
-plt.show()
+create_simple_scatter(x, y, plot_params, c, ec)
 
 #%% ----- Plot stress-strain curves for points in view for full test -----
-end_frame = 30
-
-# find all points within that strain range
-last_frame_pts = all_frames_df[all_frames_df['frame'] == end_frame]
-
-all_frames = all_frames_df.copy()
-
-pts_in_all_frames_df = all_frames[
-all_frames.index.isin(last_frame_pts.index)]
-
-pts_in_all_frames_df['lambda_y'] = pts_in_all_frames_df[['Eyy']].apply(lambda x: np.sqrt(2*x+1))
+# ----------------------------------------------------------------------------
+# assign x and y to vars for brevity
 x_1 = pts_in_all_frames_df.groupby('frame')['Eyy'].mean()
 y_1 = pts_in_all_frames_df.groupby('frame')['stress_mpa'].mean()
-
-f = plt.figure(figsize = (6,3))
-ax = f.add_subplot(1,1,1)
-ax.scatter(x = x_1, y = y_1, s = 2, c = c[0], edgecolors = ec[0], 
-        linewidths = 0.5 )
-ax.set_xlabel('Eyy (Avg. Field)')
-ax.set_ylabel('Eng. Stress (MPa)')
-ax.grid(zorder=0)
-plt.tight_layout()
-plt.show()
-
-#%%
 # ----------------------------------------------------------------------------
-# ----- filter data into strain ranges based on selected frame -----
+# ----- create figure -----
 # ----------------------------------------------------------------------------
-# create dataframe for frame used to define coordinates in strain bands 
-mask_frame = 9
+plot_params = {'figsize': (6,3),
+               'm_size': 2,
+               'linewidth': 0.5,
+               'xlabel': 'Eyy (Avg. Field)',
+               'ylabel': 'Eng. Stress (MPa)',
+               'tight_layout': True}
+
+create_simple_scatter(x_1, y_1, plot_params, c, ec)
+
+#%% ----- filter data into strain ranges based on selected frame -----
+# ----------------------------------------------------------------------------
+# ----- initialize plot vars -----
+# ----------------------------------------------------------------------------
 num_category_bands = 6
-y_var = 'nu'
-x_var = 'Eyy'
+y_var = 'Eyy'
+x_var = 'frame'
 cat_var = 'Eyy'
 num_samples_to_plot = 8000
 
-single_frame_df = all_frames_df[all_frames_df['frame'] == mask_frame]
-
+num_img_x = 3
+num_img_y = int((num_category_bands)/num_img_x)
+# ----------------------------------------------------------------------------
+# ----- compute plot specific quantities -----
+# ----------------------------------------------------------------------------
 # calculate strain range bounds
-max_category_band = round(single_frame_df[cat_var].quantile(0.98),1)
-min_category_band = round(single_frame_df[cat_var].min(),1)
+max_category_band = round(mask_frame_df[cat_var].quantile(0.98),1)
+min_category_band = round(mask_frame_df[cat_var].min(),1)
 
 category_ranges = np.linspace(min_category_band, max_category_band, num_category_bands)
 
-# colour and edge colour arrays (hard coded to 10 or less strain bands)
-ec = ['#003057', '#00313C', '#9E2A2F', '#623412','#284723',
-      '#59315F', '#A45A2A', '#53565A', '#007377', '#453536']
-c = ['#BDD6E6', '#8DB9CA', '#F4C3CC', '#D9B48F', '#9ABEAA',
-     '#C9B1D0', '#F1C6A7', '#C8C9C7', '#88DBDF', '#C1B2B6']
-
-num_img_x = 3
-num_img_y = int((num_category_bands)/num_img_x)
-
+# compute average Green-Lagrange strain for points in all frames
+avg_strain = pts_in_all_frames_df.groupby('frame')['Eyy'].mean()
+# ----------------------------------------------------------------------------
+# ----- create figure -----
+# ----------------------------------------------------------------------------
 fig, axs = plt.subplots(num_img_y, num_img_x, figsize=(5,5),
-                        sharey=True, tight_layout=True)
+                        sharey=True)#, tight_layout=True)
 
 # generate plot (either load in all at once, or individually - memory issues)
 if load_multiple_frames:
@@ -378,12 +420,18 @@ if load_multiple_frames:
             s = 2, c = c[i-1], edgecolors = ec[i-1], 
             alpha = 0.4, linewidths = 0.5
             )
-
+        
+        axs[row,col].plot(
+            avg_strain, linewidth = 0.5, linestyle = '-', c = 'k',  
+            alpha = 1.0)
+    
         axs[row,col].set_ylim([0, round(
             all_frames_df[y_var].quantile(0.995),1
             )
             +0.4
             ])
+        
+        #axs[row,col].set_ylim([0, 0.4])
 
         try:
             if x_var == 'time':
@@ -479,7 +527,7 @@ else:
                 )
             
             axs[row,col].set_xlim([0,frame_range+2])
-            axs[row,col].set_ylim([min_category_band-0.1,max_category_band+0.1])
+            axs[row,col].set_ylim([min_category_band-0.1,max_category_band])
             axs[row,col].set_xlabel(x_var)
             axs[row,col].set_ylabel(y_var)
             axs[row,col].grid(True, alpha = 0.5,zorder = 0)
@@ -505,21 +553,27 @@ else:
                               fontsize = 4)    
 
 #%% ----- STRESS VS. EXX (STRAIN BANDS) -----
-f = plt.figure(figsize = (3,3))
-ax = f.add_subplot(1,1,1)
-
+# ----------------------------------------------------------------------------
+# ----- initialize plot vars -----
+# ----------------------------------------------------------------------------
 cat_var = 'Eyy'
 plot_var = 'Eyy'
 
+# ----------------------------------------------------------------------------
+# ----- create figure -----
+# ----------------------------------------------------------------------------
+f = plt.figure(figsize = (3,3))
+ax = f.add_subplot(1,1,1)
+
 for i in range(1,num_category_bands+1):
     if i == num_category_bands:
-        category_band_df = single_frame_df[
-            single_frame_df[cat_var] >= category_ranges[i-1]]   
+        category_band_df = mask_frame_df[
+            mask_frame_df[cat_var] >= category_ranges[i-1]]   
     else:
-        category_band_df = single_frame_df[(
-            single_frame_df[cat_var] >= category_ranges[i-1]
+        category_band_df = mask_frame_df[(
+            mask_frame_df[cat_var] >= category_ranges[i-1]
             ) & (
-            single_frame_df[cat_var] < category_ranges[i]
+            mask_frame_df[cat_var] < category_ranges[i]
             )]
             
     # find all points within that strain range
@@ -544,8 +598,8 @@ for i in range(1,num_category_bands+1):
         label = 'strain_band: '+str(i)
         )
     
-    # ax.set_xlim([0,round(all_frames_df[plot_var].max(),1)+0.5])
-    ax.set_xlim([0,3.6])
+    ax.set_xlim([0,round(all_frames_df[plot_var].max(),1)+0.5])
+    #ax.set_xlim([0,3.6])
     ax.set_ylim([0,round(all_frames_df['stress_mpa'].max(),1)+0.02])
     ax.grid(True, alpha = 0.5,zorder = 0)
     ax.set_xlabel('Eyy')
@@ -557,21 +611,25 @@ legend.get_frame().set_linewidth(0.5)
 plt.tight_layout()
 
 #%% ----- OVERLAY STRAIN BAND LOCATIONS ON UNDEFORMED SAMPLE -----
-single_frame_df = all_frames_df[all_frames_df['frame'] == mask_frame]
-
+# ----------------------------------------------------------------------------
+# ---- initialize plot vars -----
+# ----------------------------------------------------------------------------
 cat_var = 'Eyy'
 
-f = plt.figure(figsize = (2,5))
+# ----------------------------------------------------------------------------
+# ---- create figure -----
+# ----------------------------------------------------------------------------
+f = plt.figure(figsize = (1.62,4))
 ax = f.add_subplot(1,1,1)
 for i in range(0,num_category_bands+1):
     if i == num_category_bands:
-            category_band_df = single_frame_df[
-                single_frame_df[cat_var] >= category_ranges[i-1]]   
+            category_band_df = mask_frame_df[
+                mask_frame_df[cat_var] >= category_ranges[i-1]]   
     else:
-        category_band_df = single_frame_df[(
-            single_frame_df[cat_var] >= category_ranges[i-1]
+        category_band_df = mask_frame_df[(
+            mask_frame_df[cat_var] >= category_ranges[i-1]
             ) & (
-            single_frame_df[cat_var] < category_ranges[i]
+            mask_frame_df[cat_var] < category_ranges[i]
             )]
     
     incl_category_band_df = all_frames_df[
@@ -601,10 +659,11 @@ ax.set_xlim([12,19])
 
 # shrink current axes box to place legend overhead with axes labels
 # Shrink current axis's height by 10% on the bottom
+'''
 box = ax.get_position()
 ax.set_position(
-    [box.x0, box.y0 + box.height * 0.1,
-     box.width, box.height * 0.7]
+    [box.x0, box.y0 + box.height * 0.25,
+     box.width, box.height * 0.5]
     )
 
 legend = ax.legend(
@@ -612,9 +671,14 @@ legend = ax.legend(
     bbox_to_anchor=(0, 0.1)
     )
 legend.get_frame().set_linewidth(0.5)
+'''
 plt.tight_layout()
+plt.show()
 
 #%% ----- PLOT WIDTH-AVERAGED STRESS VS STRAIN -----
+# ----------------------------------------------------------------------------
+# ----- create figure -----
+# ----------------------------------------------------------------------------
 f = plt.figure(figsize = (3,3))
 ax = f.add_subplot(1,1,1)
 for i in range(1,frame_range):
@@ -623,7 +687,7 @@ for i in range(1,frame_range):
     # group by x pix and take average of stress and strain
     df_xs_group = df.groupby('x_pix').mean()
 
-    ax.scatter(df_xs_group[['Exx']], 
+    ax.scatter(df_xs_group[['Eyy']], 
                df_xs_group[['stress_mpa']], 
                s = 1, 
                c = '#BDD6E6', 
@@ -631,71 +695,22 @@ for i in range(1,frame_range):
                alpha = 0.4,
                linewidths = 0.5)
 
-ax.set_xlim([0,round(all_frames_df['Eyy'].max(),1)-1])
-ax.set_ylim([0,round(all_frames_df['stress_mpa'].max(),1)-0.05])
+#ax.set_xlim([0,round(all_frames_df['Eyy'].max(),1)-1])
+ax.set_xlim([0,3])
+ax.set_ylim([0,round(all_frames_df['stress_mpa'].max(),1)+0.02])
 ax.grid(True, alpha = 0.5,zorder = 0)
 ax.set_xlabel('Eyy')
 ax.set_ylabel('Stress (Mpa)')
 
-#%% ----- Plot 3D SCATTER (STRAIN COMPONENTS VS ROTATION) ---
-'''
-all_frames_df['x_mm'] = all_frames_df['x_pix']*img_scale + all_frames_df['ux']
-all_frames_df['y_mm'] = all_frames_df['y_pix']*img_scale + all_frames_df['uy']
-
-# filter based on frame and location
-xx = np.array(all_frames_df[(all_frames_df['frame'] == mask_frame) & 
-                            (all_frames_df['x_mm'] > 15) &
-                            (all_frames_df['x_mm'] < 40) &
-                            (all_frames_df['R'] > 1)][['Exx']])
-
-yy = np.array(all_frames_df[(all_frames_df['frame'] == mask_frame) & 
-                            (all_frames_df['x_mm'] > 15) &
-                            (all_frames_df['x_mm'] < 40) &
-                            (all_frames_df['R'] > 1)][['Eyy']])
-
-zz = np.array(all_frames_df[(all_frames_df['frame'] == mask_frame) & 
-                            (all_frames_df['x_mm'] > 15) &
-                            (all_frames_df['x_mm'] < 40) & 
-                            (all_frames_df['R'] > 1)][['Exy']])
-
-cc = np.array(all_frames_df[(all_frames_df['frame'] == mask_frame) & 
-                            (all_frames_df['x_mm'] > 15) &
-                            (all_frames_df['x_mm'] < 40)&
-                            (all_frames_df['R'] > 1)][['R']])
-
-f = plt.figure(figsize = (4,3))
-ax = plt.axes(projection ="3d")
- 
-# Creating plot
-scttr = ax.scatter3D(xx, yy, zz, c = cc, cmap = custom_map, s = 0.1, vmin = -1, vmax = 4)
-ax.set_xlabel('Exx')
-ax.set_ylabel('Eyy')
-ax.set_zlabel('Exy')
-ax.grid(True, alpha = 0.5)
-ax.set_title('Frame 20')
-f.colorbar(scttr, ax = ax, shrink = 0.5, aspect = 10)
-plt.tight_layout()
-plt.show()
-'''
-
 #%% ----- EXX VS EYY (CHECK COMPRESSIBILITY) -----
-
 # ----------------------------------------------------------------------------
-# ----- filter data into strain ranges based on selected frame -----
+# ----- Initialize plot vars -----
 # ----------------------------------------------------------------------------
-# --- plot setup ---
-mask_frame = 9
 num_category_bands = 6
 y_var = 'Exx'
 x_var = 'Eyy'
 cat_var = 'Eyy'
 num_samples_to_plot = 4000
-
-# colour and edge colour arrays (hard coded to 10 or less strain bands)
-ec = ['#003057', '#00313C', '#9E2A2F', '#623412','#284723',
-      '#59315F', '#A45A2A', '#53565A', '#007377', '#453536']
-c = ['#BDD6E6', '#8DB9CA', '#F4C3CC', '#D9B48F', '#9ABEAA',
-     '#C9B1D0', '#F1C6A7', '#C8C9C7', '#88DBDF', '#C1B2B6']
 
 x_fit = np.linspace(0,3,500) # Eyy
 y_fit_1 = 0.5*(1/(2*x_fit+1) - 1)
@@ -704,17 +719,20 @@ y_fit_2 = 0.5*(1/np.sqrt(1+2*x_fit) - 1)
 num_img_x = 1
 num_img_y = 1
 
-# ----- processing/plotting -----
-single_frame_df = all_frames_df[all_frames_df['frame'] == mask_frame]
-
-# calculate strain range bounds
-max_category_band = round(single_frame_df[cat_var].quantile(0.98),1)
-min_category_band = round(single_frame_df[cat_var].min(),1)
+# ----------------------------------------------------------------------------
+# ----- compute plot specific quantities -----
+# ----------------------------------------------------------------------------
+# calculate category range bounds
+max_category_band = round(mask_frame_df[cat_var].quantile(0.98),1)
+min_category_band = round(mask_frame_df[cat_var].min(),1)
 
 category_ranges = np.linspace(
     min_category_band, max_category_band, num_category_bands
     )
 
+# ----------------------------------------------------------------------------
+# ---- create figure -----
+# ----------------------------------------------------------------------------
 fig, axs = plt.subplots(num_img_x, num_img_y, figsize=(3,3),
                         sharey=True, tight_layout=True)
 
@@ -748,21 +766,19 @@ for i in range(1,num_category_bands+1):
         s = 2, c = c[i-1], edgecolors = ec[i-1], 
         alpha = 0.3, linewidths = 0.5, label = 'Band: ' + str(i)
         )
-    '''
-    axs.set_ylim([0, round(
-        all_frames_df[y_var].quantile(0.995),1
-        )
-        +0.5
+    axs.set_ylim([round(
+        all_frames_df[y_var].quantile(0.001),2
+        )*1.2, round(
+        all_frames_df[y_var].quantile(0.995),2
+        )*1.2
         ])
-    #axs[row,col].set_xlim([0,len(all_frames_df[dependent_var].unique())+2])
+
     axs.set_xlim([0,round(
         all_frames_df[x_var].quantile(0.995),1
-        )
-        +0.5
+        )*1.2
         ])
-    '''
-    axs.set_ylim([-0.45,0])
-    axs.set_xlim([0,3.6])
+    #axs.set_ylim([-0.45,0])
+    #axs.set_xlim([0,1.8])
     axs.set_ylabel(y_var)
     axs.set_xlabel(x_var)
     axs.grid(True, alpha = 0.5,zorder = 0)  
@@ -899,4 +915,45 @@ if ~load_multiple_frames:
     ax.set_title('Exx > '+str(exx_max)+', '+str(exy_min)+'< Exy <= '+str(exy_max))
     
     plt.tight_layout()
+'''
+
+#%% ----- Plot 3D SCATTER (STRAIN COMPONENTS VS ROTATION) ---
+'''
+all_frames_df['x_mm'] = all_frames_df['x_pix']*img_scale + all_frames_df['ux']
+all_frames_df['y_mm'] = all_frames_df['y_pix']*img_scale + all_frames_df['uy']
+
+# filter based on frame and location
+xx = np.array(all_frames_df[(all_frames_df['frame'] == mask_frame) & 
+                            (all_frames_df['x_mm'] > 15) &
+                            (all_frames_df['x_mm'] < 40) &
+                            (all_frames_df['R'] > 1)][['Exx']])
+
+yy = np.array(all_frames_df[(all_frames_df['frame'] == mask_frame) & 
+                            (all_frames_df['x_mm'] > 15) &
+                            (all_frames_df['x_mm'] < 40) &
+                            (all_frames_df['R'] > 1)][['Eyy']])
+
+zz = np.array(all_frames_df[(all_frames_df['frame'] == mask_frame) & 
+                            (all_frames_df['x_mm'] > 15) &
+                            (all_frames_df['x_mm'] < 40) & 
+                            (all_frames_df['R'] > 1)][['Exy']])
+
+cc = np.array(all_frames_df[(all_frames_df['frame'] == mask_frame) & 
+                            (all_frames_df['x_mm'] > 15) &
+                            (all_frames_df['x_mm'] < 40)&
+                            (all_frames_df['R'] > 1)][['R']])
+
+f = plt.figure(figsize = (4,3))
+ax = plt.axes(projection ="3d")
+ 
+# Creating plot
+scttr = ax.scatter3D(xx, yy, zz, c = cc, cmap = custom_map, s = 0.1, vmin = -1, vmax = 4)
+ax.set_xlabel('Exx')
+ax.set_ylabel('Eyy')
+ax.set_zlabel('Exy')
+ax.grid(True, alpha = 0.5)
+ax.set_title('Frame 20')
+f.colorbar(scttr, ax = ax, shrink = 0.5, aspect = 10)
+plt.tight_layout()
+plt.show()
 '''
