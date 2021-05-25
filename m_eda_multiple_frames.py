@@ -228,6 +228,7 @@ Procedure:
 2) use this temp df to extract the indices of all points
 3) the spacing between points is constant across frames so consider one case
 4) use the row spacing between the same points to compute the strain diff
+5) store in separate df with flag to indicate if point relaxes or extends w t
 '''
 # extract points in first two frames  
 temp_df = pts_in_all_frames_df[pts_in_all_frames_df['frame'] == 1 ]
@@ -766,7 +767,6 @@ plt.show()
 # ---- initialize plot vars -----
 # ----------------------------------------------------------------------------
 cat_var = 'dEyy_dt_cat'
-mask_frame_pts_all_frames_df = pts_in_all_frames_df[pts_in_all_frames_df['frame'] == mask_frame]
 
 # ----------------------------------------------------------------------------
 # ---- create figure -----
@@ -803,7 +803,7 @@ ax.set_xlim([12,19])
 
 # shrink current axes box to place legend overhead with axes labels
 # Shrink current axis's height by 10% on the bottom
-
+'''
 box = ax.get_position()
 ax.set_position(
     [box.x0, box.y0 + box.height * 0.25,
@@ -815,7 +815,7 @@ legend = ax.legend(
     bbox_to_anchor=(0, 0.1)
     )
 legend.get_frame().set_linewidth(0.5)
-
+'''
 plt.tight_layout()
 plt.show()
 
@@ -939,6 +939,71 @@ axs.plot(
 plt.legend(loc='upper right', fontsize = 4)
 legend = axs.legend(fontsize = 4)
 legend.get_frame().set_linewidth(0.5)
+
+#%% ----- PLOT STRESS vs TIME FOR REGIONS WHICH RELAX AND EXTEND -----
+# ----------------------------------------------------------------------------
+# ----- get stress and time for each point where strain relaxes with time ----
+# ----------------------------------------------------------------------------
+cat_var = 'dEyy_dt_cat'
+x_var = 'time'
+y_var = 'dEyy_dt'
+
+relax_pts = first_frame_df[
+               first_frame_df[cat_var] == 1]
+extend_pts = first_frame_df[
+               first_frame_df[cat_var] == 0]
+# extract relevant points into separate dataframes
+relax_df = pts_in_all_frames_df[
+pts_in_all_frames_df.index.isin(relax_pts.index)]
+extend_df = pts_in_all_frames_df[
+pts_in_all_frames_df.index.isin(extend_pts.index)]
+
+# assign average values at each time frame to variables for plotting
+xr = relax_df.groupby(x_var)[x_var].mean()
+yr = relax_df.groupby(x_var)[y_var].mean()
+
+xe = extend_df.groupby(x_var)[x_var].mean()
+ye = extend_df.groupby(x_var)[y_var].mean()
+
+t = extend_df.groupby(x_var)[x_var].mean()
+dt = t.diff(periods = 1)
+
+# if looking at change in Eyy over time, need to normalize by time step
+if y_var == 'dEyy_dt':
+    yr /= dt
+    ye /= dt
+
+# ----------------------------------------------------------------------------
+# ----- create figure -----
+# ----------------------------------------------------------------------------
+plot_params = {'figsize': (6,3),
+               'm_size': 2,
+               'linewidth': 0.5,
+               'xlabel': 'Time (s)',
+               'ylabel': 'dEyy/dt',
+               'tight_layout': True,
+               'log_x': True}
+
+f = plt.figure(figsize = (plot_params['figsize']))
+ax = f.add_subplot(1,1,1)
+ax.scatter(
+    x = xr[6:], y = yr[6:], s = plot_params['m_size'], 
+    c = c[0], edgecolors = ec[0], 
+    linewidths = plot_params['linewidth'], label = 'relax'
+    )
+ax.scatter(
+    x = xe[6:], y = ye[6:], s = plot_params['m_size'], 
+    c = c[2], edgecolors = ec[2], 
+    linewidths = plot_params['linewidth'], label = 'extend'
+    )
+ax.set_xlabel(plot_params['xlabel'])
+ax.set_ylabel(plot_params['ylabel'])
+ax.grid(zorder=0)
+if plot_params['log_x']:
+    ax.set_xscale('log')
+ax.grid(True, alpha = 0.5)
+plt.legend(loc='upper right')
+        
 
 #%% ----- EXTRA PLOT CAPABILITIES -----
 # ----------------------------------------------------------------------------
