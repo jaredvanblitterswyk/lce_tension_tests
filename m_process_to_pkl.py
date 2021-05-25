@@ -319,7 +319,7 @@ def plot_rotation_field(x,y,Rij, frame_no):
 disp_labels = ['ux', 'uy', 'uz']
 strain_labels = ['Exx', 'Eyy', 'Exy']
  
-for i in range(len(files_gom)-1,len(files_gom)):
+for i in range(len(files_gom)-2,len(files_gom)-1):
     # extract frame number and display
     frame_no = files_gom[i][28:-10] # lcei_001_006_t02_r00
     #frame_no = files_gom[i][35:-10] 
@@ -364,7 +364,7 @@ for i in range(len(files_gom)-1,len(files_gom)):
     # drop rows with no cross-section listed
     results_df = results_df.dropna(axis=0, how = 'any')
     
-    save_filename = 'results_df_frame_' + '{:02d}'.format(str(frame_no)) + '.pkl'
+    save_filename = 'results_df_frame_' + '{:02d}'.format(int(frame_no)) + '.pkl'
     results_df.to_pickle(os.path.join(dir_gom_results,save_filename))
 
 #%% ===== INTERPOLATION DEBUGGING CODE =====
