@@ -95,6 +95,7 @@ orientation = 'vertical'
 # set frame range manually for plotting
 frame_range = 38
 mask_frame = 9
+post_mask_frame = 25 # frame to compare to mask to determine if strain inc/dec
 img_scale = 0.01248 # image scale (mm/pix)
 
 # colour and edge colour arrays (hard coded to 10 or less strain bands)
@@ -216,17 +217,39 @@ try:
         all_frames_df['nu'] = -1*all_frames_df['Eyy']/all_frames_df['Exx']
 except:
     print('Specimen orientation not recognized/specified.')
-    
-'''    
-# ---- TO DO: categorize as strain decreasing or increasing -----
-trunc_all_frames_df = all_frames_df[all_frames_df['frame'] >= 5]
-baseline_df = trunc_all_frames_df[trunc_all_frames_df['frame'] == 5]['Eyy']
 
-trunc_all_frames_df = trunc_all_frames_df.reset_index()
-test = all_frames_df[['Eyy']].groupby(level=0).mean()
-
-# extract only points in first frame, assign feature to that df only - avoids need to add feature to all frames
+# ----------------------------------------------------------------------------
+# ----- calculate temporal change in strain and incr/decr flag -----
+# ----------------------------------------------------------------------------
+''' 
+Procedure:
+1) extract first two frames with all points that appear over the full test
+2) use this temp df to extract the indices of all points
+3) the spacing between points is constant across frames so consider one case
+4) use the row spacing between the same points to compute the strain diff
 '''
+# extract points in first two frames  
+temp_df = pts_in_all_frames_df[
+    (pts_in_all_frames_df['frame'] == 1) | (pts_in_all_frames_df['frame'] == 2)
+    ]
+
+pt_indices = temp_df.index
+# find index spacing of one point
+indices_single_pt = [i for i, x in enumerate(temp_indices) if x == pt_indices[0]]
+pts_period = indices_single_pt[1] - indices_single_pt[0]
+
+pts_in_all_frames_df['dEyy_dt'] = pts_in_all_frames_df['Eyy'].diff(periods = pts_period)   
+
+# add feature indicating if temporally increasing or decreasing beyond mask frame
+# create dictionary mapping indices to value (0 or 1)
+mask_df = pts_in_all_frames_df[pts_in_all_frames_df['frame'] == mask_frame]
+post_mask_df = pts_in_all_frames_df[pts_in_all_frames_df['frame'] == post_mask_frame]
+
+deyy_dt = mask_df['Eyy'] - post_mask_df['Eyy']
+deyy_dt_bool = (deyy_dt > 0).astype(int)
+# create dictionary of increasing/decreasing flag for each index
+deyy_dt_mapping = deyy_dt_bool.to_dict()
+pts_in_all_frames_df['dEyy_cat'] = pd.Series(pts_in_all_frames_df['Eyy'].index).map(deyy_dt_mapping)
 
 #%% ----- EXPLORATORY DATA ANALYSIS -----
 # ----- plot histogram and box plot of strain for each frame -----
