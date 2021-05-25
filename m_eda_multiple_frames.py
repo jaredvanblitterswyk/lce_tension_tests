@@ -188,6 +188,7 @@ all_frames_df['lambda_y'] = all_frames_df[['Eyy']].apply(lambda x: np.sqrt(2*x+1
 # -----create dataframe of points in frame used for clustering -----
 # ----------------------------------------------------------------------------
 mask_frame_df = all_frames_df[all_frames_df['frame'] == mask_frame]
+first_frame_df = all_frames_df[all_frames_df['frame'] == 1]
 
 # ----------------------------------------------------------------------------
 # add time to dataframe based on time mapping
@@ -229,13 +230,11 @@ Procedure:
 4) use the row spacing between the same points to compute the strain diff
 '''
 # extract points in first two frames  
-temp_df = pts_in_all_frames_df[
-    (pts_in_all_frames_df['frame'] == 1) | (pts_in_all_frames_df['frame'] == 2)
-    ]
+temp_df = pts_in_all_frames_df[pts_in_all_frames_df['frame'] == 1 ]
 
 pt_indices = temp_df.index
 # find index spacing of one point
-indices_single_pt = [i for i, x in enumerate(temp_indices) if x == pt_indices[0]]
+indices_single_pt = [i for i, x in enumerate(pt_indices) if x == pt_indices[0]]
 pts_period = indices_single_pt[1] - indices_single_pt[0]
 
 pts_in_all_frames_df['dEyy_dt'] = pts_in_all_frames_df['Eyy'].diff(periods = pts_period)   
@@ -245,11 +244,11 @@ pts_in_all_frames_df['dEyy_dt'] = pts_in_all_frames_df['Eyy'].diff(periods = pts
 mask_df = pts_in_all_frames_df[pts_in_all_frames_df['frame'] == mask_frame]
 post_mask_df = pts_in_all_frames_df[pts_in_all_frames_df['frame'] == post_mask_frame]
 
-deyy_dt = mask_df['Eyy'] - post_mask_df['Eyy']
+deyy_dt = mask_df[['Eyy']] - post_mask_df[['Eyy']]
 deyy_dt_bool = (deyy_dt > 0).astype(int)
-# create dictionary of increasing/decreasing flag for each index
-deyy_dt_mapping = deyy_dt_bool.to_dict()
-pts_in_all_frames_df['dEyy_cat'] = pd.Series(pts_in_all_frames_df['Eyy'].index).map(deyy_dt_mapping)
+
+# create separate data frame with coordinates and bool mapping for strain incr.
+first_frame_df['dEyy_dt_cat'] = deyy_dt_bool
 
 #%% ----- EXPLORATORY DATA ANALYSIS -----
 # ----- plot histogram and box plot of strain for each frame -----
@@ -759,6 +758,64 @@ legend = ax.legend(
     )
 legend.get_frame().set_linewidth(0.5)
 '''
+plt.tight_layout()
+plt.show()
+
+#%% ----- OVERLAY INCREASING/DECREASING STRAIN LOCATIONS ON UNDEFORMED SAMPLE -----
+# ----------------------------------------------------------------------------
+# ---- initialize plot vars -----
+# ----------------------------------------------------------------------------
+cat_var = 'dEyy_dt_cat'
+mask_frame_pts_all_frames_df = pts_in_all_frames_df[pts_in_all_frames_df['frame'] == mask_frame]
+
+# ----------------------------------------------------------------------------
+# ---- create figure -----
+# ----------------------------------------------------------------------------
+f = plt.figure(figsize = (1.62,4))
+ax = f.add_subplot(1,1,1)
+# plot all points in reference config
+
+ax.scatter(
+    all_frames_df[all_frames_df['frame'] == 1][['x_pix']]*img_scale, 
+    all_frames_df[all_frames_df['frame'] == 1][['y_pix']]*img_scale, 
+    s = 1, c = '#D0D3D4', edgecolors = '#D0D3D4', 
+    alpha = 0.3, linewidths = 0, zorder = -1, label = 'all_other_points'
+    )
+
+        
+for i in [0,1]:
+    category_band_df = first_frame_df[
+               first_frame_df[cat_var] == i]
+    
+    # plot on one figure
+    ax.scatter(
+        category_band_df[['x_pix']]*img_scale, 
+        category_band_df[['y_pix']]*img_scale, 
+        s = 1, c = c[i], edgecolors = ec[i], alpha = 1, 
+        linewidths = 0, zorder = i, label = 'Range: '+str(i)
+        )
+
+# ----- customize plot - add grid, labels, and legend -----
+ax.grid(True, alpha = 0.5)
+ax.set_xlabel('x (mm)')
+ax.set_ylabel('y (mm)')
+ax.set_xlim([12,19])
+
+# shrink current axes box to place legend overhead with axes labels
+# Shrink current axis's height by 10% on the bottom
+
+box = ax.get_position()
+ax.set_position(
+    [box.x0, box.y0 + box.height * 0.25,
+     box.width, box.height * 0.5]
+    )
+
+legend = ax.legend(
+    fontsize = 3, loc='upper right', ncol=1, 
+    bbox_to_anchor=(0, 0.1)
+    )
+legend.get_frame().set_linewidth(0.5)
+
 plt.tight_layout()
 plt.show()
 
