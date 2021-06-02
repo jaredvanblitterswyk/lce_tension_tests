@@ -239,7 +239,7 @@ dir_root_local = 'C:/Users/jcv/Documents'
 # extensions to access sub-directories
 batch_ext = 'lcei_001'
 mts_ext = 'mts_data'
-sample_ext = '007_t09_r00'
+sample_ext = '007_t10_r00'
 gom_ext = 'gom_results'
 
 # define full paths to mts and gom data
@@ -258,7 +258,7 @@ t = 1.6 # thickness of sample [mm]
 orientation = 'vertical'
 cmap_name = 'lajolla' # custom colormap stored in mpl_styles
 xsection_filename = batch_ext+'_'+sample_ext+'_section_coords.csv'
-mask_side_length = 1.2 # max side length of triangles in DeLauny triangulation
+mask_side_length = 0.5 # max side length of triangles in DeLauny triangulation
 cbar_levels = 25 # colorbar levels
 nth_frames = 5 # sub sampling images where correlation data is available
 mts_columns = ['time', 'crosshead', 'load', 'trigger', 'cam_44', 'cam_43', 'trig_arduino']
@@ -350,10 +350,16 @@ for i in range(len(files_gom)-2,len(files_gom)-1):
     results_df = pd.concat([coords_df,outputs_df],axis = 1, join = 'inner')
     # drop points with nans
     results_df = results_df.dropna(axis=0, how = 'any')
-    # assign cross-section width based on pixel location
-    results_df['width_mm'] = results_df['x_pix']
+
     try:
-        results_df['width_mm'] = results_df['width_mm'].apply(lambda x: width_mm.loc[x][0] if x in width_mm.index else np.nan)
+        if orientation == 'horizontal':
+            results_df['width_mm'] = results_df['x_pix'].apply(
+                lambda x: width_mm.loc[x][0] if x in width_mm.index else np.nan
+                )
+        else: 
+            results_df['width_mm'] = results_df['y_pix'].apply(
+                lambda x: width_mm.loc[x][0] if x in width_mm.index else np.nan
+                )    
         # assign cross-section area
         results_df['area_mm2'] = results_df['width_mm'].apply(lambda x: x*t)
         # assign width-averaged stress
