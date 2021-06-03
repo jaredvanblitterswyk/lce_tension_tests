@@ -231,14 +231,15 @@ Procedure:
 5) store in separate df with flag to indicate if point relaxes or extends w t
 '''
 # extract points in first two frames  
-temp_df = pts_in_all_frames_df[pts_in_all_frames_df['frame'] == 1 ]
+temp_df = pts_in_all_frames_df[pts_in_all_frames_df['frame'] <= 2 ]
 
 pt_indices = temp_df.index
 # find index spacing of one point
 indices_single_pt = [i for i, x in enumerate(pt_indices) if x == pt_indices[0]]
 pts_period = indices_single_pt[1] - indices_single_pt[0]
 
-pts_in_all_frames_df['dEyy_dt'] = pts_in_all_frames_df['Eyy'].diff(periods = pts_period)   
+pts_in_all_frames_df['dEyy_dt'] = pts_in_all_frames_df['Eyy'].diff(periods = pts_period)  
+pts_in_all_frames_df['dsigma_dt'] = pts_in_all_frames_df['stress_mpa'].diff(periods = pts_period)   
 
 # add feature indicating if temporally increasing or decreasing beyond mask frame
 # create dictionary mapping indices to value (0 or 1)
