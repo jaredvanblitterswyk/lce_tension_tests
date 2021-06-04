@@ -1004,7 +1004,75 @@ if plot_params['log_x']:
     ax.set_xscale('log')
 ax.grid(True, alpha = 0.5)
 plt.legend(loc='upper right')
-        
+
+#%% ----- PLOT NORMALIZED STRESS AND STRAIN RATES -----
+# ----------------------------------------------------------------------------
+# ----- ** calls on relax_df and extend_df in above cell ** ----
+# ----------------------------------------------------------------------------
+x_var = 'time'
+y_var = 'Eyy'
+y_var_2 = 'stress_mpa'
+
+t = extend_df.groupby(x_var)[x_var].mean()
+dt = t.diff(periods = 1)
+
+'''
+# find point at max stress for sample
+plt.figure()
+plt.scatter(x = t, y = extend_df.groupby('time')['stress_mpa'].mean())
+plt.xlim([0,20])
+
+# max stress at frame 3
+'''
+peak_frame_ind = 2
+# plot scatter of dEyy_dt for each region
+t = relax_df.groupby(x_var)[x_var].mean()
+Eyy_r = relax_df.groupby(x_var)[y_var].mean()
+Eyy_e = extend_df.groupby(x_var)[y_var].mean()
+sig_r = relax_df.groupby(x_var)['stress_mpa'].mean()
+sig_e = extend_df.groupby(x_var)['stress_mpa'].mean()
+
+# normalize stress and strain by value at peak load (sigma_0, Eyy_0)
+nEyy_r  = Eyy_r/Eyy_r.iloc[peak_frame_ind]
+nEyy_e  = Eyy_e/Eyy_e.iloc[peak_frame_ind]
+nsig_r  = sig_r/sig_r.iloc[peak_frame_ind]
+nsig_e  = sig_e/sig_e.iloc[peak_frame_ind]
+
+plt.figure()
+plt.scatter(t.iloc[peak_frame_ind:], nsig_r.iloc[peak_frame_ind:])
+plt.scatter(t.iloc[peak_frame_ind:], nsig_e.iloc[peak_frame_ind:])
+
+# calculate normalized rate of change in stress and strain
+dnEyy_r_dt = abs(nEyy_r.diff(periods = 1))/dt
+dnEyy_e_dt = abs(nEyy_e.diff(periods = 1))/dt
+dnsig_r_dt = abs(nsig_r.diff(periods = 1))/dt
+dnsig_e_dt = abs(nsig_e.diff(periods = 1))/dt
+
+plt.figure(figsize = (3,1.5))
+plt.plot(t.iloc[peak_frame_ind:], dnEyy_r_dt.iloc[peak_frame_ind:], markersize = 2, markeredgecolor = ec[2], c = c[2], marker = 'o', linestyle ='--', linewidth = 0.5, label = '$d\hat{\overline{E_{yy}(x_c, y_c)}^{S}}/dt$')
+plt.plot(t.iloc[peak_frame_ind:], dnEyy_e_dt.iloc[peak_frame_ind:], markersize = 2, markeredgecolor = ec[0], c = c[0], marker = 'o', linestyle ='--', linewidth = 0.5, label = '$d\hat{\overline{E_{yy}(x_e, y_e)}^{S}}/dt$')
+plt.plot(t.iloc[peak_frame_ind:], dnsig_r_dt.iloc[peak_frame_ind:], markersize = 2, markeredgecolor = ec[2], c = c[2], marker = '^', linestyle ='-.', linewidth = 0.5, label = '$d\hat{\overline{\sigma_{yy}(x_c, y_c)}}/dt$')
+plt.plot(t.iloc[peak_frame_ind:], dnsig_e_dt.iloc[peak_frame_ind:], markersize = 2, markeredgecolor = ec[0], c = c[0], marker = '^', linestyle ='-.', linewidth = 0.5, label = '$d\hat{\overline{\sigma_{yy}(x_e, y_e)}}/dt$')
+plt.xscale('log')
+#plt.ylim([0,0.4])
+plt.yscale('log')
+plt.ylabel('$d\hat{\overline{X}}/dt$')
+plt.xlabel('Time, t (s)')
+plt.grid(True, alpha = 0.5)
+plt.legend()
+
+plt.figure(figsize = (3,1.5))
+plt.plot(t.iloc[peak_frame_ind:], nEyy_r.iloc[peak_frame_ind:], markersize = 2, markeredgecolor = ec[2], c = c[2], marker = 'o', linestyle ='--', linewidth = 0.5, label = '$\hat{\overline{E_{yy}(x_c, y_c)}^{S}}$')
+plt.plot(t.iloc[peak_frame_ind:], nEyy_e.iloc[peak_frame_ind:], markersize = 2, markeredgecolor = ec[0], c = c[0], marker = 'o', linestyle ='--', linewidth = 0.5, label = '$\hat{\overline{E_{yy}(x_e, y_e)}^{S}}$')
+plt.plot(t.iloc[peak_frame_ind:], nsig_r.iloc[peak_frame_ind:], markersize = 2, markeredgecolor = ec[2], c = c[2], marker = '^', linestyle ='-.', linewidth = 0.5, label = '$\hat{\overline{\sigma_{yy}(x_c, y_c)}}$')
+plt.plot(t.iloc[peak_frame_ind:], nsig_e.iloc[peak_frame_ind:], markersize = 2, markeredgecolor = ec[0], c = c[0], marker = '^', linestyle ='-.', linewidth = 0.5, label = '$\hat{\overline{\sigma_{yy}(x_e, y_e)}}$')
+plt.xscale('log')
+plt.ylim([0,3])
+#plt.yscale('log')
+plt.ylabel('$\hat{\overline{X}}$')
+plt.xlabel('Time, t (s)')
+plt.grid(True, alpha = 0.5)
+plt.legend()      
 
 #%% ----- EXTRA PLOT CAPABILITIES -----
 # ----------------------------------------------------------------------------
