@@ -74,8 +74,8 @@ def calculateEijRot(disp, strain_labels, spacing):
         Eij[component] = np.zeros((row,col))
     
     Rij = np.zeros((row,col))
-    Reig = np.zeros((row,col))
-    stretch_p1 = np.zeros((row,col))
+    #Reig = np.zeros((row,col))
+    #stretch_p1 = np.zeros((row,col))
       
     I = np.matrix(([1,0],[0,1]))
     
@@ -110,7 +110,7 @@ def calculateEijRot(disp, strain_labels, spacing):
                 R[0,0] = -1
                 
             Rij[i,j] = np.arccos(R[0,0])*180/m.pi
-            
+            '''
             if np.isnan(np.sum(C)):
                 stretch_p1[i,j] = np.nan
                 Reig[i,j] = np.nan
@@ -122,8 +122,8 @@ def calculateEijRot(disp, strain_labels, spacing):
                 
                 # compute magnitude of principal eigenvector
                 Reig[i,j] = np.arccos(np.real(eigen[0]))*180/m.pi
-            
-    return Eij, Rij, Reig, stretch_p1
+            '''
+    return Eij, Rij#, Reig, stretch_p1
 
 def mask_interp_region(triang, df, mask_side_len = 0.2):
     triangle_mask = []
@@ -175,7 +175,7 @@ def extract_load_at_images(file_path, files, col_dtypes, columns, nth_frames):
     # return data at every nth frame    
     return cam_trig_df.iloc[::nth_frames,:]
 
-def interp_and_calc_strains(file, mask_side_length, spacing, disp_labels, strain_labels):
+def interp_and_calc_strains(file, mask_side_length, spacing, disp_labels, strain_labels, xx, yy):
     # load in data
     df = pd.read_csv(os.path.join(dir_gom_results,file), skiprows = 5)
     
@@ -209,9 +209,9 @@ def interp_and_calc_strains(file, mask_side_length, spacing, disp_labels, strain
         disp[component] = interpolator(xx, yy)
     
     # calculate strains and rotations from deformation gradient            
-    Eij, Rij, Reig, stretch_p1 = calculateEijRot(disp, strain_labels, spacing)
+    Eij, Rij = calculateEijRot(disp, strain_labels, spacing)
     
-    return disp, Eij, Rij, Reig, stretch_p1, area_mask, triangle_mask
+    return disp, Eij, Rij, area_mask, triangle_mask
 
 def calc_xsection(dir_xsection, filename, img_scale, orientation):  
     # read in coordinates from imageJ analysis stored in csv
@@ -237,9 +237,9 @@ def calc_xsection(dir_xsection, filename, img_scale, orientation):
 dir_root = 'Z:/Experiments/lce_tension'
 dir_root_local = 'C:/Users/jcv/Documents'
 # extensions to access sub-directories
-batch_ext = 'lcei_001'
+batch_ext = 'lcei_003'
 mts_ext = 'mts_data'
-sample_ext = '007_t10_r00'
+sample_ext = '001_t03_r0X'
 gom_ext = 'gom_results'
 
 # define full paths to mts and gom data
@@ -253,7 +253,7 @@ except:
 # ----- define constants -----
 spec_id = batch_ext+'_'+sample_ext # full specimen id
 Nx, Ny = 2448, 2048 # pixel resolution in x, y axis
-img_scale = 0.01248 # mm/pix
+img_scale = 0.01568 # mm/pix
 t = 1.6 # thickness of sample [mm]
 orientation = 'vertical'
 cmap_name = 'lajolla' # custom colormap stored in mpl_styles
@@ -283,6 +283,15 @@ y_vec = np.linspace(Ny-1,0,Ny) # vector - original y coords (pix)
 xx_pix,yy_pix = np.meshgrid(x_vec,y_vec) # matrix of x and y coordinates (pix)
 xx,yy = xx_pix*img_scale, yy_pix*img_scale # matrix of x and y coordinates (mm)
 
+# crop coordinates to contain specimen (reduce interp comp. cost)
+xc1, xc2 = 850, 1625 # col indices to crop coordinates
+yc1, yc2 = 0, Ny # row indices to crop coordinates
+Nxc, Nyc = xc2-xc1, yc2-yc1 # dims of cropped coordinates for reshaping
+
+# -- cropped coordinates to interpolate onto ---
+xx_crop = xx[yc1:yc2,xc1:xc2]
+yy_crop = yy[yc1:yc2,xc1:xc2]
+
 # calculate scaled spacing between points in field
 dx, dy = img_scale, img_scale
 
@@ -304,8 +313,8 @@ except:
 
 # assemble results dataframe
 coords_df = pd.DataFrame()
-coords_df['x_pix'] = np.reshape(xx_pix,(Nx*Ny,))
-coords_df['y_pix'] = np.reshape(yy_pix,(Nx*Ny,))
+coords_df['x_pix'] = np.reshape(xx_crop,(Nxc*Nyc,))
+coords_df['y_pix'] = np.reshape(yy_crop,(Nxc*Nyc,))
 
 def plot_rotation_field(x,y,Rij, frame_no):
     plt.figure(figsize = (2,3))
@@ -319,7 +328,7 @@ def plot_rotation_field(x,y,Rij, frame_no):
 disp_labels = ['ux', 'uy', 'uz']
 strain_labels = ['Exx', 'Eyy', 'Exy']
  
-for i in range(len(files_gom)-2,len(files_gom)-1):
+for i in range(0,1):#len(files_gom)):
     # extract frame number and display
     frame_no = files_gom[i][28:-10] # lcei_001_006_t02_r00
     #frame_no = files_gom[i][35:-10] 
@@ -328,22 +337,23 @@ for i in range(len(files_gom)-2,len(files_gom)-1):
     spacing = [dx, dy]
     
     # compute interpolated strains and displacements in reference coordinates
-    disp, Eij, Rij, Reig, stretch_p1, area_mask, triangle_mask = interp_and_calc_strains(
-        files_gom[i], mask_side_length, spacing, disp_labels, strain_labels
+    disp, Eij, Rij, area_mask, triangle_mask = interp_and_calc_strains(
+        files_gom[i], mask_side_length, spacing, disp_labels, strain_labels,
+        xx, yy
         )
     
     # assemble results in data frame
     outputs_df = pd.DataFrame()
     
     for component in disp_labels:
-        outputs_df[component] = np.reshape(disp.get(component),(Nx*Ny,))
+        outputs_df[component] = np.reshape(disp.get(component),(Nxc*Nyc,))
     
     for component in strain_labels:
-        outputs_df[component] = np.reshape(Eij.get(component),(Nx*Ny,))
+        outputs_df[component] = np.reshape(Eij.get(component),(Nxc*Ncy,))
 
-    outputs_df['R'] = np.reshape(Rij,(Nx*Ny,))
-    outputs_df['Reig'] = np.reshape(Reig,(Nx*Ny,))
-    outputs_df['lambda1'] = np.reshape(stretch_p1,(Nx*Ny,))
+    outputs_df['R'] = np.reshape(Rij,(Nxc*Nyc,))
+    #outputs_df['Reig'] = np.reshape(Reig,(Nx*Ny,))
+    #outputs_df['lambda1'] = np.reshape(stretch_p1,(Nx*Ny,))
     
     # ----- compile results into dataframe -----
     # concatenate to create one output dataframe
@@ -371,7 +381,7 @@ for i in range(len(files_gom)-2,len(files_gom)-1):
     results_df = results_df.dropna(axis=0, how = 'any')
     
     save_filename = 'results_df_frame_' + '{:02d}'.format(int(frame_no)) + '.pkl'
-    results_df.to_pickle(os.path.join(dir_gom_results,save_filename))
+    results_df.to_pickle(os.path.join(dir_root_local,save_filename))
 
 #%% ===== INTERPOLATION DEBUGGING CODE =====
 '''
