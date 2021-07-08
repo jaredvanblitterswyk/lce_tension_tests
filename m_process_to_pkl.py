@@ -155,25 +155,33 @@ def mask_interp_region(triang, df, mask_side_len = 0.2):
             
     return mask, area_mask
     
-def extract_load_at_images(file_path, files, col_dtypes, columns, nth_frames):
+def extract_load_at_images(mts_df, file_path, current_file, col_dtypes, 
+                           columns, keep_frames):
     # import csv file
-    mts_df = pd.read_csv(os.path.join(file_path,files[0]),skiprows = 5,
+    mts_raw_df = pd.read_csv(os.path.join(file_path,current_file),skiprows = 5,
                          header = 1)
     # set dataframe columns
-    mts_df.columns = columns
+    mts_raw_df.columns = columns
     # drop index with units
-    mts_df = mts_df.drop(axis = 0, index = 0)
+    mts_raw_df = mts_raw_df.drop(axis = 0, index = 0)
     # set to numeric dtype
-    mts_df = mts_df.astype(col_dtypes)
+    mts_raw_df = mts_raw_df.astype(col_dtypes)
     
     # filter based on trigger value and drop unneeded columns
-    cam_trig_df = mts_df[mts_df['trigger'] > 0].drop(['time','trigger',
+    cam_trig_df = mts_raw_df[mts_raw_df['trigger'] > 0].drop(['time','trigger',
                                                       'cam_44','cam_43',
                                                       'trig_arduino'],
                                                      axis = 1)
-
-    # return data at every nth frame    
-    return cam_trig_df.iloc[::nth_frames,:]
+    # reset index to match image capture number
+    cam_trig_df.reset_index(inplace=True, drop = True)
+    
+    # select only points where frame number matches subset of images in keep_frames
+    cam_trig_subset = cam_trig_df[cam_trig_df.index.isin(list(keep_frames['image_no']))]
+    
+    # append to dataframe
+    mts_df = pd.concat([mts_df,cam_trig_subset])
+      
+    return mts_df
 
 def interp_and_calc_strains(file, mask_side_length, spacing, disp_labels, strain_labels, xx, yy):
     # load in data
@@ -292,6 +300,9 @@ Nxc, Nyc = xc2-xc1, yc2-yc1 # dims of cropped coordinates for reshaping
 xx_crop = xx[yc1:yc2,xc1:xc2]
 yy_crop = yy[yc1:yc2,xc1:xc2]
 
+xx_pix_crop = xx_pix[yc1:yc2,xc1:xc2]
+yy_pix_crop = yy_pix[yc1:yc2,xc1:xc2]
+
 # calculate scaled spacing between points in field
 dx, dy = img_scale, img_scale
 
@@ -304,31 +315,38 @@ except:
     print('No file containing cross-section coordinates found.')
 
 try:
-    mts_df = extract_load_at_images(dir_mts, files_mts, mts_col_dtypes, 
-                                mts_columns, nth_frames)
+    frames_list = pd.read_csv(os.path.join(dir_mts,files_mts[-1]))
+    # keep only image number to extract from raw mts file
+    keep_frames = frames_list[['image_no']]
+    
+    for i in range(0,len(files_mts)-1):
+        current_file = files_mts[i]
+        if i == 0:
+            mts_df = pd.DataFrame(columns = ['crosshead', 'load'])
+        
+        mts_df = extract_load_at_images(mts_df, dir_mts, current_file,
+                                        mts_col_dtypes, mts_columns, 
+                                        keep_frames
+                                        )
     # reset index
-    mts_df = mts_df.reset_index(drop=True)
+    mts_df.reset_index(drop=True, inplace = True)
+    
 except:
     print('No file containing mts measurements found.')
 
 # assemble results dataframe
 coords_df = pd.DataFrame()
-coords_df['x_pix'] = np.reshape(xx_crop,(Nxc*Nyc,))
-coords_df['y_pix'] = np.reshape(yy_crop,(Nxc*Nyc,))
+coords_df['x_pix'] = np.reshape(xx_pix_crop,(Nxc*Nyc,))
+coords_df['y_pix'] = np.reshape(yy_pix_crop,(Nxc*Nyc,))
 
-def plot_rotation_field(x,y,Rij, frame_no):
-    plt.figure(figsize = (2,3))
-    plt.scatter(x, y, s = 1, c = Rij)
-    plt.colorbar()
-    plt.title('Frame no.: '+str(frame_no))
-    plt.xlabel('x (pix)')
-    plt.ylabel('y (pix)')
 #%%
 # ---- run processing -----  
 disp_labels = ['ux', 'uy', 'uz']
 strain_labels = ['Exx', 'Eyy', 'Exy']
- 
-for i in range(0,1):#len(files_gom)):
+import time
+start_time = time.time()
+
+for i in range(1,len(mts_df)):
     # extract frame number and display
     frame_no = files_gom[i][28:-10] # lcei_001_006_t02_r00
     #frame_no = files_gom[i][35:-10] 
@@ -339,7 +357,7 @@ for i in range(0,1):#len(files_gom)):
     # compute interpolated strains and displacements in reference coordinates
     disp, Eij, Rij, area_mask, triangle_mask = interp_and_calc_strains(
         files_gom[i], mask_side_length, spacing, disp_labels, strain_labels,
-        xx, yy
+        xx_crop, yy_crop
         )
     
     # assemble results in data frame
@@ -349,7 +367,7 @@ for i in range(0,1):#len(files_gom)):
         outputs_df[component] = np.reshape(disp.get(component),(Nxc*Nyc,))
     
     for component in strain_labels:
-        outputs_df[component] = np.reshape(Eij.get(component),(Nxc*Ncy,))
+        outputs_df[component] = np.reshape(Eij.get(component),(Nxc*Nyc,))
 
     outputs_df['R'] = np.reshape(Rij,(Nxc*Nyc,))
     #outputs_df['Reig'] = np.reshape(Reig,(Nx*Ny,))
@@ -373,7 +391,7 @@ for i in range(0,1):#len(files_gom)):
         # assign cross-section area
         results_df['area_mm2'] = results_df['width_mm'].apply(lambda x: x*t)
         # assign width-averaged stress
-        results_df['stress_mpa'] = mts_df.iloc[int(frame_no),1]/results_df['area_mm2']
+        results_df['stress_mpa'] = mts_df.iloc[int(frame_no),1] / results_df['area_mm2']
     except: 
         print('No cross-section coordinates loaded - excluding width, area and stress from dataframe.')
     
@@ -382,6 +400,7 @@ for i in range(0,1):#len(files_gom)):
     
     save_filename = 'results_df_frame_' + '{:02d}'.format(int(frame_no)) + '.pkl'
     results_df.to_pickle(os.path.join(dir_root_local,save_filename))
+    print("--- %s seconds ---" % (time.time() - start_time))
 
 #%% ===== INTERPOLATION DEBUGGING CODE =====
 '''
