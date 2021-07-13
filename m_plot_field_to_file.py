@@ -12,6 +12,7 @@ import csv
 import pandas as pd
 import numpy as np
 import json
+import math as m
 import matplotlib as mpl
 import matplotlib.pyplot as plt
 from matplotlib.colors import LinearSegmentedColormap
@@ -67,9 +68,9 @@ def plot_field_contour_save(xx, yy, zz, pp):
 # root directory
 dir_root = 'Z:/Experiments/lce_tension'
 # extensions to access sub-directories
-batch_ext = 'lcei_001'
+batch_ext = 'lcei_003'
 mts_ext = 'mts_data'
-sample_ext = '007_t04_r00'
+sample_ext = '001_t03_r0X'
 gom_ext = 'gom_results'
 orientation = 'vertical'
 
@@ -102,9 +103,9 @@ dir_nu_folder = os.path.join(dir_figs_root,'nu_fields')
 
 # ----- define constants -----
 spec_id = batch_ext+'_'+sample_ext # full specimen id
-Ny, Nx = 2448, 2048 # pixel resolution in x, y axis
-img_scale = 0.0124 # mm/pix
-t = 1.6 # thickness of sample [mm]
+Ny, Nx = 2048, 2448 # pixel resolution in x, y axis
+img_scale = 0.01568 # mm/pix
+t = 1.0 # thickness of sample [mm]
 cmap_name = 'lajolla' # custom colormap stored in mpl_styles
 cbar_levels = 25 # colorbar levels
 
@@ -117,93 +118,71 @@ plt.style.use('Z:/Python/mpl_styles/stg_plot_style_1.mplstyle')
 # find files ending with .pkl
 files_pkl = [f for f in os.listdir(dir_gom_results) if f.endswith('.pkl')]
 
-#%%
-# load in data
-frame_count = 0
-for i in range(0,len(files_pkl)):
-    print('Processing frame: '+str(i))
-    save_filename = 'results_df_frame_'+"{:02d}".format(i)+'.pkl'
-    frame_df = pd.read_pickle(os.path.join(dir_gom_results,save_filename))
-        
-    # add time stamp to frame to allow for sorting later
-    frame_df['frame'] = i*np.ones((frame_df.shape[0],))
-    
-    if frame_count == 0:
-        # create empty data frame to store all values from each frame
-        all_frames_df = pd.DataFrame(columns = frame_df.columns)
-    
-    all_frames_df = pd.concat(
-        [all_frames_df, frame_df], 
-        axis = 0, join = 'outer'
-        )
-    
-    frame_count += 1
-
-# add columns with scaled coordinates
-all_frames_df['x_mm'] = all_frames_df['x_pix']*img_scale + all_frames_df['ux']
-all_frames_df['y_mm'] = all_frames_df['y_pix']*img_scale + all_frames_df['uy']
-
-# create in-plane Poisson's ratio feature
-try: 
-    if orientation == 'vertical':
-        all_frames_df['nu'] = -1*all_frames_df['Exx']/all_frames_df['Eyy']
-    elif orientation == 'horizontal':
-        all_frames_df['nu'] = -1*all_frames_df['Eyy']/all_frames_df['Exx']
-except:
-    print('Specimen orientation not recognized/specified.')
-
-all_frames_df['nu'] = all_frames_df['nu'].apply(lambda x: x if x >= 0 else 0)
-
-#%% 
 # create dictionary of plot parameters - pass to function
 plot_params = {'figsize': (2,4), 'xlabel': 'x (mm)', 'ylabel': 'y (mm)', 
-               's': 0.1, 'xmin': 12, 'xmax': 19,
-               'ymin': 0, 'ymax': 26,
+               's': 0.1, 'xmin': 13, 'xmax': 25,
+               'ymin': 0, 'ymax': m.ceil(Ny*img_scale),
                'dpi': 300, 'cmap': custom_map,
                'tight_layout': True, 'hide_labels': False, 'show_fig': False,
                'save_fig': True
                }   
 plot_var_specific = {'Exx': {
-                'vlims': [-0.4, 0], 'dir_save_figs': dir_strain_folder
+                'vlims': [-0.2, 0], 'dir_save_figs': dir_strain_folder
               },
               'Eyy': {
-                  'vlims': [0, 4.2], 'dir_save_figs': dir_strain_folder
+                  'vlims': [0, 0.58], 'dir_save_figs': dir_strain_folder
               },
               'Exy': {
-                  'vlims': [-0.4, 0.4], 'dir_save_figs': dir_strain_folder
+                  'vlims': [-0.06, 0.06], 'dir_save_figs': dir_strain_folder
               },
               'ux': {
-                  'vlims': [-0.6, 0.6], 'dir_save_figs': dir_disp_folder
+                  'vlims': [-0.7, 0.5], 'dir_save_figs': dir_disp_folder
               },
               'uy': {
-                  'vlims': [0, 18], 'dir_save_figs': dir_disp_folder
+                  'vlims': [0, 16], 'dir_save_figs': dir_disp_folder
               },
               'uz': {
-                  'vlims': [0, 1.2], 'dir_save_figs': dir_disp_folder
+                  'vlims': [0, 0.6], 'dir_save_figs': dir_disp_folder
               },
               'R': {
-                  'vlims': [0, 6], 'dir_save_figs': dir_rotation_folder
-              },
-              'Reig': {
-                  'vlims': [0, 6], 'dir_save_figs': dir_rotation_folder
-              },
-              'lambda1': {
-                  'vlims': [0, 10], 'dir_save_figs': dir_strain_folder
+                  'vlims': [0, 5], 'dir_save_figs': dir_rotation_folder
               },
               'nu': {
                   'vlims': [0, 0.5], 'dir_save_figs': dir_nu_folder
               }
               }
 
-for i in range(0,len(files_pkl)):
+#%%
+# load in data
+frame_count = 0
+for i in range(1,len(files_pkl)):
+    print('Processing frame: '+str(i))
+    save_filename = 'results_df_frame_'+"{:02d}".format(i)+'.pkl'
+    frame_df = pd.read_pickle(os.path.join(dir_gom_results,save_filename))
+           
+    # add columns with scaled coordinates
+    frame_df['x_mm'] = frame_df['x_pix']*img_scale + frame_df['ux']
+    frame_df['y_mm'] = frame_df['y_pix']*img_scale + frame_df['uy']
+    
+    # create in-plane Poisson's ratio feature
+    try: 
+        if orientation == 'vertical':
+            frame_df['nu'] = -1*frame_df['Exx']/frame_df['Eyy']
+        elif orientation == 'horizontal':
+            frame_df['nu'] = -1*frame_df['Eyy']/frame_df['Exx']
+    except:
+        print('Specimen orientation not recognized/specified.')
+    
+    frame_df['nu'] = frame_df['nu'].apply(lambda x: x if x >= 0 else 0)
+
     plt.close('all')
     print('Plotting fields for frame: '+str(i))
-    for j in ['ux','uy','uz','Exx','Eyy','Exy','nu','R']:
+    for j in ['ux','uy','uz','Exx','Exy','Eyy','R', 'nu']:
         
         # filter data to plot
-        xx = np.array(all_frames_df[all_frames_df['frame'] == i][['x_mm']])
-        yy = np.array(all_frames_df[all_frames_df['frame'] == i][['y_mm']])
-        zz = np.array(all_frames_df[all_frames_df['frame'] == i][[j]])
+        xx = np.array(frame_df[['x_mm']])
+        yy = np.array(frame_df[['y_mm']])
+        zz = np.array(frame_df[[j]])
         
         # assign variable-specific key:value pairs to plot params dictionary
         plot_params['vmin'] = plot_var_specific[j]['vlims'][0]
@@ -217,7 +196,8 @@ for i in range(0,len(files_pkl)):
         
         # pass file to function that plots fields to file - lower res to save time initially
         plot_field_contour_save(xx, yy, zz, plot_params)
-        
+
+#%% 
 # ----- write processing and plot parameters to file -----
 # define output path
 output_filename = batch_ext + '_'+ sample_ext + '_plot_config.json'
