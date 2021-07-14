@@ -11,61 +11,9 @@ import pandas as pd
 import numpy as np
 import matplotlib as mpl
 import matplotlib.pyplot as plt
-
+from func.create_eda_plots import create_simple_scatter, plot_boxplot_vs_frame
+from func.extract_data import extract_mts_data
 from matplotlib.colors import LinearSegmentedColormap
-
-#%% Functions
-def plot_boxplot_vs_frame(data, frame_labels, ylabel):
-    # plot exx
-    f = plt.figure(figsize = (6,3))
-    ax = f.add_subplot(1,1,1)
-    ax.boxplot(data)#, boxprops = boxprops, flierprops = flierprops, 
-               #whiskerprops = boxprops, medianprops = medianprops, 
-               #capprops = boxprops)
-    ax.set_xticklabels(frame_labels)
-    ax.set_xlabel('Frame')
-    ax.set_ylabel(ylabel)
-    ax.grid(zorder=0)
-    plt.tight_layout()
-
-def convert_frame_time(x):
-    return frame_time_conv[x]
-
-def create_simple_scatter(x, y, plot_params, c, ec):
-    f = plt.figure(figsize = plot_params['figsize'])
-    ax = f.add_subplot(1,1,1)
-    ax.scatter(x = x, y = y, s = plot_params['m_size'], 
-               c = c[0], edgecolors = ec[0], 
-               linewidths = plot_params['linewidth'])
-    ax.set_xlabel(plot_params['xlabel'])
-    ax.set_ylabel(plot_params['ylabel'])
-    ax.grid(zorder=0)
-    if plot_params['log_x']:
-        ax.set_xscale('log')
-    
-    if plot_params['tight_layout']:
-        plt.tight_layout()
-    plt.show()
-    
-def extract_mts_data(file_path, files, col_dtypes, columns):
-    # import csv file
-    mts_df = pd.read_csv(os.path.join(file_path,files[0]),skiprows = 5,
-                         header = 1)
-    # set dataframe columns
-    mts_df.columns = columns
-    # drop index with units
-    mts_df = mts_df.drop(axis = 0, index = 0)
-    # set to numeric dtype
-    mts_df = mts_df.astype(col_dtypes)
-    
-    # filter based on trigger value and drop unneeded columns
-    cam_trig_df = mts_df[mts_df['trigger'] > 0].drop(['trigger',
-                                                      'cam_44','cam_43',
-                                                      'trig_arduino'],
-                                                     axis = 1)
-
-    # return data at every nth frame    
-    return cam_trig_df
 
 #%% ----- MAIN SCRIPT -----
 # ----------------------------------------------------------------------------
