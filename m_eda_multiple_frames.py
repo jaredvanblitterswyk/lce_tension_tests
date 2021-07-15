@@ -11,7 +11,8 @@ import pandas as pd
 import numpy as np
 import matplotlib as mpl
 import matplotlib.pyplot as plt
-from func.create_eda_plots import create_simple_scatter, plot_boxplot_vs_frame, generate_histogram
+from func.create_eda_plots import (create_simple_scatter, generate_histogram, 
+                                   generate_boxplot_vs_frame)
 from func.df_extract_transform import add_features, return_frame_df, return_points_in_all_frames
 from func.extract_data import extract_mts_data
 from matplotlib.colors import LinearSegmentedColormap
@@ -38,7 +39,7 @@ mts_col_dtypes = {'time':'float',
               'cam_43': 'int64',
               'trig_arduino': 'int64'}
 
-load_multiple_frames = True # load single frames flag
+load_multiple_frames = False # load single frames flag
 orientation = 'vertical'
 frame_range = 13 # set frame range for plotting histograms
 end_frame = 30 # manually define last frame where all points still in FOV
@@ -190,7 +191,7 @@ if 'histogram' in plots_to_generate:
     plot_params = {'n_bins': 20, 
                    'xlims': [1.05*frame_range_df[plot_var].min(),
                              1.05*frame_range_df[plot_var].max()],
-                   'linewidth': 0.5,
+                   'ylabel': plot_var,
                    'grid_alpha': 0.5,
                    'fontsize': 5,
                    'annot_linestyle': '--',
@@ -209,46 +210,35 @@ if 'histogram' in plots_to_generate:
         
 #%% ----- Generate Box Plots -----
 # ----------------------------------------------------------------------------
-# ----- compute plot specific quantities -----
+# ----- generate for single variable specific quantities -----
 # ----------------------------------------------------------------------------
+# compile plot params in dictionary
+if 'boxplot' in plots_to_generate:
+    
+    mpl.rcParams['lines.marker']=''
+    
+    plot_var = 'Eyy'
+    plot_params = {'figsize': (4,2), 
+                   'xlims': [0, frame_range+1],
+                   'xlabel': 'Frame number',
+                   'ylabel': plot_var,
+                   'linewidth': 0.5,
+                   'grid_alpha': 0.5,
+                   'fontsize': 8,
+                   'showfliers': False
+                   }
+                   
+    if load_multiple_frames:
+        generate_boxplot_vs_frame(plot_var, plot_params, frame_range,
+                              load_multiple_frames, dir_gom_results, img_scale, 
+                              time_mapping, orientation, data_df)
+    else:
+        generate_boxplot_vs_frame(plot_var, plot_params, frame_range,
+                              load_multiple_frames, dir_gom_results, img_scale, 
+                              time_mapping, orientation, data_df)
+
+    
 '''
-data_exx = []
-data_eyy = []
-data_exy = []
-
-# if loading all frames at once, aggregate strain data into list for plotting
-if load_multiple_frames: 
-    frame_labels = all_frames_df['frame'].unique().astype(int).astype(str)
-    
-    # append strains to list for boxplots
-    for i in range(0,frame_range):
-        data_exx.append(
-            np.array(
-                all_frames_df[all_frames_df['frame'] == i]['Exx']
-                )
-            )
-        data_eyy.append(
-            np.array(
-                all_frames_df[all_frames_df['frame'] == i]['Eyy']
-                )
-            )
-        data_exy.append(
-            np.array(
-                all_frames_df[all_frames_df['frame'] == i]['Exy']
-                )
-            )
-else:
-    # data aggregation already complete, just calculate frame labels
-    frame_labels = np.linspace(1, frame_range, frame_range).astype(int).astype(str)
-    
-# ----------------------------------------------------------------------------
-# ----- generate box plots -----
-# ----------------------------------------------------------------------------
-mpl.rcParams['lines.marker']=''
-plot_boxplot_vs_frame(data_exx, frame_labels, ylabel = 'Exx')
-plot_boxplot_vs_frame(data_eyy, frame_labels, ylabel = 'Eyy')
-plot_boxplot_vs_frame(data_exy, frame_labels, ylabel = 'Exy')
-
 #%%
     # calculate measurement area
     avg_width = single_frame_df.groupby('x_pix').first().mean()['width_mm']

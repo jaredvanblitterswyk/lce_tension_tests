@@ -27,18 +27,48 @@ def create_simple_scatter(x, y, plot_params, c, ec):
         plt.tight_layout()
     plt.show()
     
-def plot_boxplot_vs_frame(data, frame_labels, ylabel):
-    # plot exx
-    f = plt.figure(figsize = (6,3))
-    ax = f.add_subplot(1,1,1)
-    ax.boxplot(data)#, boxprops = boxprops, flierprops = flierprops, 
-               #whiskerprops = boxprops, medianprops = medianprops, 
-               #capprops = boxprops)
-    ax.set_xticklabels(frame_labels)
-    ax.set_xlabel('Frame')
-    ax.set_ylabel(ylabel)
-    ax.grid(zorder=0)
-    plt.tight_layout()
+def generate_boxplot_vs_frame(plot_var, plot_params, frame_range,
+                              load_multiple_frames, dir_gom_results, img_scale, 
+                              time_mapping, orientation, data_df = None):
+    '''Generate boxplots for mulitple frames
+    
+    This function generates a boxplot for each frame on one set of axes
+    for a specified target variable. General plot parameters are passed in 
+    through a dictionary, along with other miscellaneous info to facilitate 
+    loading the data properly in the case of loading and plotting
+    on a frame-by-frame basis. The data_df is an optional pandas DataFrame that
+    can be passed if the data has been loaded into memory previously.
+    
+    '''
+    # genenerate frame labels
+    frame_labels = [f for f in range(1,frame_range)]
+    
+    # ------------------------------------------------------------------------
+    # ----- create figure -----
+    # ------------------------------------------------------------------------
+    f = plt.figure(figsize = plot_params['figsize'])
+    ax = f.add_subplot(1,1,1) 
+    
+    # ---------- load data for current frame ----------
+    for i in range(1,frame_range):
+        if load_multiple_frames: 
+            frame_df = data_df[data_df['frame'] == i]
+        else:
+            frame_df = return_frame_df(i, dir_gom_results)
+            frame_df = add_features(frame_df, img_scale, time_mapping, orientation)    
+            
+        # ---------- add data ----------        
+        ax.boxplot(frame_df[plot_var].values, positions = [i], 
+                   showfliers = plot_params['showfliers'])
+        ax.set_xticklabels(frame_labels)
+        ax.set_xlabel(plot_params['xlabel'], fontsize = plot_params['fontsize'])
+        ax.set_ylabel(plot_params['ylabel'], fontsize = plot_params['fontsize'])
+        ax.set_xlim(plot_params['xlims'])
+        ax.tick_params(labelsize = plot_params['fontsize'])
+        ax.grid(True, alpha = plot_params['grid_alpha'], zorder = 0)
+        plt.tight_layout()
+        
+    plt.show()
     
 def generate_histogram(subplot_dims, plot_var, plot_params, frame_range,
                        load_multiple_frames, dir_gom_results, img_scale, 
@@ -54,12 +84,13 @@ def generate_histogram(subplot_dims, plot_var, plot_params, frame_range,
     
     '''
     
-     # initialize row and column index counters
+    # initialize row and column index counters
     row, col = 0, 0
-    # ----------------------------------------------------------------------------
+    # ------------------------------------------------------------------------
     # ----- create figure -----
-    # ----------------------------------------------------------------------------
-    fig, axs = plt.subplots(subplot_dims[0], subplot_dims[1], sharey=True, tight_layout=True)
+    # ------------------------------------------------------------------------
+    fig, axs = plt.subplots(subplot_dims[0], subplot_dims[1], sharey=True, 
+                            tight_layout=True)
         
     # loop through range of frames and generate histogram and box plots
     plot_num = 0
@@ -81,7 +112,7 @@ def generate_histogram(subplot_dims, plot_var, plot_params, frame_range,
             bins = plot_params['n_bins'], linewidth = plot_params['linewidth'])
         axs[row,col].set_title('Frame: '+ str(i), fontsize = plot_params['fontsize'])
         axs[row,col].set_xlabel(plot_var, fontsize = plot_params['fontsize'])
-        axs[row,col].grid(True, alpha = plot_params['grid_alpha'])
+        axs[row,col].grid(True, alpha = plot_params['grid_alpha'], zorder = 0)
         axs[row,col].set_xlim(plot_params['xlims'])
         axs[row,col].tick_params(labelsize = plot_params['fontsize'])
         
