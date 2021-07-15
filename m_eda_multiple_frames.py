@@ -11,9 +11,8 @@ import pandas as pd
 import numpy as np
 import matplotlib as mpl
 import matplotlib.pyplot as plt
-from func.create_eda_plots import create_simple_scatter, plot_boxplot_vs_frame
+from func.create_eda_plots import create_simple_scatter, plot_boxplot_vs_frame, generate_histogram
 from func.df_extract_transform import add_features, return_frame_df, return_points_in_all_frames
-from func.eda_plots import generate_histogram
 from func.extract_data import extract_mts_data
 from matplotlib.colors import LinearSegmentedColormap
 
