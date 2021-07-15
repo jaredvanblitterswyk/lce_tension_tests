@@ -5,6 +5,7 @@ Created on Wed Jul 14 16:49:30 2021
 @author: jcv
 """
 import pandas as pd
+import os
 
 def extract_mts_data(file_path, files, col_dtypes, columns):
     # import csv file
