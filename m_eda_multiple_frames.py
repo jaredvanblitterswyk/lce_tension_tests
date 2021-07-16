@@ -14,7 +14,7 @@ import matplotlib.pyplot as plt
 from func.create_eda_plots import (create_simple_scatter, generate_histogram, 
                                    generate_boxplot_vs_frame)
 from func.df_extract_transform import add_features, return_frame_df, return_points_in_all_frames
-from func.extract_data import extract_mts_data
+from func.mts_extract_data import extract_mts_data
 from matplotlib.colors import LinearSegmentedColormap
 
 #%% ----- MAIN SCRIPT -----
@@ -41,7 +41,10 @@ mts_col_dtypes = {'time':'float',
 
 load_multiple_frames = False # load single frames flag
 orientation = 'vertical'
-frame_range = 13 # set frame range for plotting histograms
+frame_max = 13 # max frame to consider
+frame_min = 1 # min frame to plot
+frame_range = frame_max - frame_min
+plot_frame_range = [frame_min, frame_max] # range of frames to plot
 end_frame = 30 # manually define last frame where all points still in FOV
 mask_frame = 9 # frame to use to mask points 
 post_mask_frame = 25 # frame to compare to mask to determine if strain inc/dec
@@ -68,13 +71,10 @@ dir_gom_results = os.path.join(dir_root,batch_ext,sample_ext,gom_ext)
 results_files = [f for f in os.listdir(dir_gom_results) if f.endswith('.pkl')]
 num_frames = len(results_files)
 
-
 # plots to generate
-plots_to_generate = ['histogram',
-                     'boxplot',
-                     'global_stress_strain'
+plots_to_generate = ['global_stress_strain', 
+                     'next_plot'
                      ]
-
 #%% ----- LOAD DATA -----
 # ----------------------------------------------------------------------------
 # ----- load in frame-time mapping file -----
@@ -91,7 +91,7 @@ except:
 # ----- load in DIC to dataframe -----
 # ----------------------------------------------------------------------------
 if load_multiple_frames:
-    for i in range(1,frame_range+1):
+    for i in range(frame_min,frame_max+1):
         print('Adding frame: '+str(i))
         save_filename = 'results_df_frame_' + '{:02d}'.format(i) + '.pkl'
         try:
@@ -121,7 +121,7 @@ if load_multiple_frames:
     mask_frame_df = data_df[data_df['frame'] == mask_frame]
     first_frame_df = data_df[data_df['frame'] == 1]
     last_frame_df = data_df[data_df['frame'] == end_frame]
-    frame_range_df = data_df[data_df['frame'] == frame_range]
+    frame_max_df = data_df[data_df['frame'] == frame_max]
   
     # keep only points that appear in last frame
     data_all_df = return_points_in_all_frames(data_df, last_frame_df)
@@ -189,8 +189,8 @@ if 'histogram' in plots_to_generate:
     
     # compile plot params in dictionary
     plot_params = {'n_bins': 20, 
-                   'xlims': [1.05*frame_range_df[plot_var].min(),
-                             1.05*frame_range_df[plot_var].max()],
+                   'xlims': [1.05*frame_max_df[plot_var].min(),
+                             1.05*frame_max_df[plot_var].max()],
                    'ylabel': plot_var,
                    'grid_alpha': 0.5,
                    'fontsize': 5,
@@ -200,17 +200,17 @@ if 'histogram' in plots_to_generate:
                    }
     
     if load_multiple_frames: 
-        generate_histogram(subplot_dims, plot_var, plot_params, frame_range,
+        generate_histogram(subplot_dims, plot_var, plot_params, plot_frame_range,
                            load_multiple_frames, dir_gom_results, img_scale, 
                            time_mapping, orientation, ec, c, data_df)
     else:
-        generate_histogram(subplot_dims, plot_var, plot_params, frame_range,
+        generate_histogram(subplot_dims, plot_var, plot_params, plot_frame_range,
                            load_multiple_frames, dir_gom_results, img_scale, 
                            time_mapping, orientation, ec, c)
         
 #%% ----- Generate Box Plots -----
 # ----------------------------------------------------------------------------
-# ----- generate for single variable specific quantities -----
+# ----- generate for single variable -----
 # ----------------------------------------------------------------------------
 # compile plot params in dictionary
 if 'boxplot' in plots_to_generate:
@@ -219,7 +219,7 @@ if 'boxplot' in plots_to_generate:
     
     plot_var = 'Eyy'
     plot_params = {'figsize': (4,2), 
-                   'xlims': [0, frame_range+1],
+                   'xlims': [0, frame_max+1],
                    'xlabel': 'Frame number',
                    'ylabel': plot_var,
                    'linewidth': 0.5,
@@ -229,19 +229,36 @@ if 'boxplot' in plots_to_generate:
                    }
                    
     if load_multiple_frames:
-        generate_boxplot_vs_frame(plot_var, plot_params, frame_range,
+        generate_boxplot_vs_frame(plot_var, plot_params, plot_frame_range,
                               load_multiple_frames, dir_gom_results, img_scale, 
                               time_mapping, orientation, data_df)
     else:
-        generate_boxplot_vs_frame(plot_var, plot_params, frame_range,
+        generate_boxplot_vs_frame(plot_var, plot_params, plot_frame_range,
                               load_multiple_frames, dir_gom_results, img_scale, 
                               time_mapping, orientation, data_df)
-
+        
+#%% ----- Plot global stress-strain curve -----
+# ----------------------------------------------------------------------------
+if 'global_stress_strain' in plots_to_generate:
     
-'''
-#%%
-    # calculate measurement area
-    avg_width = single_frame_df.groupby('x_pix').first().mean()['width_mm']
-    N = single_frame_df.groupby('x_pix').first().shape[0]
-    area = avg_width*img_scale*N
-'''
+    plot_params = {'figsize': (4,2),
+               'm_size': 2,
+               'linewidth': 0.5,
+               'xlabel': 'Time (s)',
+               'ylabel': 'Eng. Stress (MPa)',
+               'tight_layout': True,
+               'grid_alpha': 0.5,
+               'fontsize': 8,
+               'log_x': True}
+    
+    plot_vars = {'x': 'time',
+                 'y': 'stress_mpa'}
+     
+    if load_multiple_frames:
+        create_simple_scatter(plot_vars, plot_params, plot_frame_range,
+                          load_multiple_frames, dir_gom_results, img_scale, 
+                          time_mapping, orientation, ec, c, data_df)
+    else:
+        create_simple_scatter(plot_vars, plot_params, plot_frame_range,
+                          load_multiple_frames, dir_gom_results, img_scale, 
+                          time_mapping, orientation, ec, c)

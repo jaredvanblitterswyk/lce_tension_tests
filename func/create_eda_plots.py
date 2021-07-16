@@ -11,37 +11,92 @@ import matplotlib as mpl
 import matplotlib.pyplot as plt
 from func.df_extract_transform import return_frame_df, add_features
 
-def create_simple_scatter(x, y, plot_params, c, ec):
+def create_simple_scatter(plot_vars, plot_params, plot_frame_range,
+                          load_multiple_frames, dir_results, img_scale, 
+                          time_mapping, orientation, ec, c, data_df = None):
+    '''Generate boxplots for one variable as a function of frame number
+    
+    Args: 
+        plot_vars (dict): dictionary of x and y plot variables
+        plot_params (dict): dictionary of parameters to customize plot
+        plot_frame_range (array): min and max frame numbers to plot
+        load_multiple_frames (bool): flag to process in batch or frame-by-frame
+        dir_gom_results (str): dic results dictionary
+        img_scale (float): mm/pixel scale for images
+        time_mapping (dict): map frame number to test time
+        orientation (str): orientation of sample in field of view
+        ec (array): list of possible marker edge colours
+        c (array): list of possible face colours
+        data_df (dataframe, optional): pre-loaded results from all frames in
+            one data structure
+            
+    Returns:
+        Figure
+        
+    Notes: 
+        Hard-coded to group by frame
+
+    '''
+    # ------------------------------------------------------------------------
+    # ----- create figure -----
+    # ------------------------------------------------------------------------
     f = plt.figure(figsize = plot_params['figsize'])
     ax = f.add_subplot(1,1,1)
+    
+    # ----- load data -----
+    # ----- if preloaded, use groupby method to get data -----
+    if load_multiple_frames:
+        x = data_df.groupby('frame')[plot_vars['x']].mean()
+        y = data_df.groupby('frame')[plot_vars['y']].mean()
+    else:
+        x = []
+        y = []
+        # ---------- load data for current frame ----------
+        for i in range(plot_frame_range[0], plot_frame_range[1]+1):
+            frame_df = return_frame_df(i, dir_results)
+            frame_df = add_features(frame_df, img_scale, time_mapping, orientation)    
+            
+            x.append(frame_df[plot_vars['x']].mean())
+            y.append(frame_df[plot_vars['y']].mean())
+            
+    # ---------- add data ----------   
     ax.scatter(x = x, y = y, s = plot_params['m_size'], 
                c = c[0], edgecolors = ec[0], 
                linewidths = plot_params['linewidth'])
-    ax.set_xlabel(plot_params['xlabel'])
-    ax.set_ylabel(plot_params['ylabel'])
-    ax.grid(zorder=0)
+    ax.set_xlabel(plot_params['xlabel'], fontsize = plot_params['fontsize'])
+    ax.set_ylabel(plot_params['ylabel'], fontsize = plot_params['fontsize'])
+    ax.grid(True, alpha = plot_params['grid_alpha'], zorder=0)
+    ax.tick_params(labelsize = plot_params['fontsize'])
     if plot_params['log_x']:
         ax.set_xscale('log')
-    
     if plot_params['tight_layout']:
         plt.tight_layout()
+        
     plt.show()
     
-def generate_boxplot_vs_frame(plot_var, plot_params, frame_range,
-                              load_multiple_frames, dir_gom_results, img_scale, 
+def generate_boxplot_vs_frame(plot_var, plot_params, plot_frame_range,
+                              load_multiple_frames, dir_results, img_scale, 
                               time_mapping, orientation, data_df = None):
-    '''Generate boxplots for mulitple frames
+    '''Generate boxplots for one variable as a function of frame number
     
-    This function generates a boxplot for each frame on one set of axes
-    for a specified target variable. General plot parameters are passed in 
-    through a dictionary, along with other miscellaneous info to facilitate 
-    loading the data properly in the case of loading and plotting
-    on a frame-by-frame basis. The data_df is an optional pandas DataFrame that
-    can be passed if the data has been loaded into memory previously.
-    
+    Args: 
+        plot_var (str): variable to plot
+        plot_params (dict): dictionary of parameters to customize plot
+        plot_frame_range (array): min and max frame numbers to plot
+        load_multiple_frames (bool): flag to process in batch or frame-by-frame
+        dir_gom_results (str): dic results dictionary
+        img_scale (float): mm/pixel scale for images
+        time_mapping (dict): map frame number to test time
+        orientation (str): orientation of sample in field of view
+        data_df (dataframe, optional): pre-loaded results from all frames in
+            one data structure
+            
+    Returns:
+        Figure
+
     '''
     # genenerate frame labels
-    frame_labels = [f for f in range(1,frame_range)]
+    frame_labels = [f for f in range(plot_frame_range[0],plot_frame_range[1])]
     
     # ------------------------------------------------------------------------
     # ----- create figure -----
@@ -50,11 +105,11 @@ def generate_boxplot_vs_frame(plot_var, plot_params, frame_range,
     ax = f.add_subplot(1,1,1) 
     
     # ---------- load data for current frame ----------
-    for i in range(1,frame_range):
+    for i in range(plot_frame_range[0], plot_frame_range[1]):
         if load_multiple_frames: 
             frame_df = data_df[data_df['frame'] == i]
         else:
-            frame_df = return_frame_df(i, dir_gom_results)
+            frame_df = return_frame_df(i, dir_results)
             frame_df = add_features(frame_df, img_scale, time_mapping, orientation)    
             
         # ---------- add data ----------        
@@ -70,18 +125,29 @@ def generate_boxplot_vs_frame(plot_var, plot_params, frame_range,
         
     plt.show()
     
-def generate_histogram(subplot_dims, plot_var, plot_params, frame_range,
-                       load_multiple_frames, dir_gom_results, img_scale, 
+def generate_histogram(subplot_dims, plot_var, plot_params, plot_frame_range,
+                       load_multiple_frames, dir_results, img_scale, 
                        time_mapping, orientation, ec, c, data_df = None):
-    '''Generate histogram for mulitple frames
+    '''Generate histogram for mulitple frames in separate subplots
     
-    This function generates a histogram for each frame for a specified target 
-    variable. General plot parameters are passed in through a dictionary as 
-    well as face and edge color arrays, along with other miscellaneous info
-    to facilitate loading the data properly in the case of loading and plotting
-    on a frame-by-frame basis. The data_df is an optional pandas DataFrame that
-    can be passed if the data has been loaded into memory previously.
-    
+    Args: 
+        subplot_dims (array): number of subplots in rows and columns
+        plot_var (str): variable to plot
+        plot_params (dict): dictionary of parameters to customize plot
+        plot_frame_range (array): min and max frame numbers to plot
+        load_multiple_frames (bool): flag to process in batch or frame-by-frame
+        dir_gom_results (str): dic results dictionary
+        img_scale (float): mm/pixel scale for images
+        time_mapping (dict): map frame number to test time
+        orientation (str): orientation of sample in field of view
+        ec (array): list of possible marker edge colours
+        c (array): list of possible face colours
+        data_df (dataframe, optional): pre-loaded results from all frames in
+            one data structure
+            
+    Returns:
+        Figure
+
     '''
     
     # initialize row and column index counters
@@ -95,7 +161,7 @@ def generate_histogram(subplot_dims, plot_var, plot_params, frame_range,
     # loop through range of frames and generate histogram and box plots
     plot_num = 0
     
-    for i in range(1,frame_range):
+    for i in range(plot_frame_range[0],plot_frame_range[1]+1):
         # --------- compute axis indices ----------
         row = int(plot_num/(subplot_dims[1]))
         col = plot_num - row*(subplot_dims[1])
@@ -104,7 +170,7 @@ def generate_histogram(subplot_dims, plot_var, plot_params, frame_range,
         if load_multiple_frames: 
             frame_df = data_df[data_df['frame'] == i]
         else:
-            frame_df = return_frame_df(i, dir_gom_results)
+            frame_df = return_frame_df(i, dir_results)
             frame_df = add_features(frame_df, img_scale, time_mapping, orientation)
             
         # ---------- generate subplot ----------
