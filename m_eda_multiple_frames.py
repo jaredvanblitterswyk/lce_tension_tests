@@ -12,8 +12,12 @@ import numpy as np
 import matplotlib as mpl
 import matplotlib.pyplot as plt
 from func.create_eda_plots import (create_simple_scatter, generate_histogram, 
-                                   generate_boxplot_vs_frame)
-from func.df_extract_transform import add_features, return_frame_df, return_points_in_all_frames
+                                   generate_boxplot_vs_frame,
+                                   plot_var_classes_over_time,
+                                   overlay_pts_on_sample)
+from func.df_extract_transform import (add_features, return_frame_dataframe, 
+                                       return_points_in_all_frames,
+                                       find_points_in_categories)
 from func.mts_extract_data import extract_mts_data
 from matplotlib.colors import LinearSegmentedColormap
 
@@ -51,10 +55,10 @@ post_mask_frame = 25 # frame to compare to mask to determine if strain inc/dec
 img_scale = 0.01568 # image scale (mm/pix)
 
 # colour and edge colour arrays (hard coded to 10 or less strain bands)
-ec = ['#003057', '#00313C', '#9E2A2F', '#623412','#284723',
-      '#59315F', '#A45A2A', '#53565A', '#007377', '#453536']
-c = ['#BDD6E6', '#8DB9CA', '#F4C3CC', '#D9B48F', '#9ABEAA',
-     '#C9B1D0', '#F1C6A7', '#C8C9C7', '#88DBDF', '#C1B2B6']
+ec = ['#917265', '#896657', '#996f71', '#805a66', '#453941',
+      '#564e5c', '#32303a']
+c = ['#d1c3bd', '#ccb7ae', '#b99c9d', '#a6808c', '#8b7382',
+     '#706677', '#565264']
 
 # load in colormap
 cm_data = np.loadtxt('Z:/Python/mpl_styles/'+cmap_name+'.txt')
@@ -72,7 +76,7 @@ results_files = [f for f in os.listdir(dir_gom_results) if f.endswith('.pkl')]
 num_frames = len(results_files)
 
 # plots to generate
-plots_to_generate = ['global_stress_strain', 
+plots_to_generate = ['overlay_pts_on_sample', 
                      'next_plot'
                      ]
 #%% ----- LOAD DATA -----
@@ -119,25 +123,25 @@ if load_multiple_frames:
     data_df = add_features(data_df, img_scale, time_mapping, orientation)
     # separate frames of interest
     mask_frame_df = data_df[data_df['frame'] == mask_frame]
-    first_frame_df = data_df[data_df['frame'] == 1]
-    last_frame_df = data_df[data_df['frame'] == end_frame]
-    frame_max_df = data_df[data_df['frame'] == frame_max]
+    first_frame_df = data_df[data_df['frame'] == frame_min]
+    last_frame_df = data_df[data_df['frame'] == frame_max]
+    frame_end_df = data_df[data_df['frame'] == end_frame]
   
     # keep only points that appear in last frame
     data_all_df = return_points_in_all_frames(data_df, last_frame_df)
 
 else:
     # define frames of interest
-    mask_frame_df = return_frame_df(mask_frame, dir_gom_results)
-    first_frame_df = return_frame_df(1, dir_gom_results)
-    last_frame_df = return_frame_df(end_frame, dir_gom_results)
-    frame_range_df = return_frame_df(frame_range, dir_gom_results)
+    mask_frame_df = return_frame_dataframe(mask_frame, dir_gom_results)
+    first_frame_df = return_frame_dataframe(frame_min, dir_gom_results)
+    last_frame_df = return_frame_dataframe(frame_max, dir_gom_results)
+    frame_end_df = return_frame_dataframe(end_frame, dir_gom_results)
     
     # add time independent features
     mask_frame_df = add_features(mask_frame_df, img_scale, time_mapping, orientation)
     first_frame_df = add_features(first_frame_df, img_scale, time_mapping, orientation)
     last_frame_df = add_features(last_frame_df, img_scale, time_mapping, orientation)
-    frame_range_df = add_features(frame_range_df, img_scale, time_mapping, orientation)
+    frame_end_df = add_features(frame_end_df, img_scale, time_mapping, orientation)
 
 '''
 # ----------------------------------------------------------------------------
@@ -179,9 +183,9 @@ first_frame_df['dEyy_dt_cat'] = deyy_dt_bool
 #%% ----- EXPLORATORY DATA ANALYSIS -----
 # ----- plot histogram and box plot of strain for each frame -----
 if 'histogram' in plots_to_generate:
-    # ----------------------------------------------------------------------------
+    # ------------------------------------------------------------------------
     # ----- initialize plot vars -----
-    # ----------------------------------------------------------------------------
+    # ------------------------------------------------------------------------
     
     subplot_cols = 6
     subplot_dims = [int(round((frame_range)/subplot_cols,0)), subplot_cols]
@@ -262,3 +266,128 @@ if 'global_stress_strain' in plots_to_generate:
         create_simple_scatter(plot_vars, plot_params, plot_frame_range,
                           load_multiple_frames, dir_gom_results, img_scale, 
                           time_mapping, orientation, ec, c)
+        
+#%% --- Plot classes of data vs frame based on value in a specified frame ---
+if 'scatter_var_categories' in plots_to_generate:
+    # ------------------------------------------------------------------------
+    # ----- initialize plot vars -----
+    # ------------------------------------------------------------------------
+    # define categorical variables
+    num_categories = 6
+    y_var = 'Eyy'
+    x_var = 'time'
+    category_var = 'Eyy'
+    
+    # define analysis parameters dictionary
+    analysis_params = {'x_var': x_var,
+                       'y_var': y_var,
+                       'cat_var': category_var,
+                       'samples': 8000,
+                       'mask_frame': mask_frame}
+    
+    # define plot parameters dictionary
+    plot_params = {'figsize': (5,4),
+               'xlabel': 'Time (s)',
+               'ylabel': 'Eng. Stress (MPa)',
+               'tight_layout': True,
+               'grid_alpha': 0.5,
+               'm_size': 2,
+               'm_alpha': 0.4,
+               'fontsize': 5,
+               'linewidth': 0.5,
+               'annot_linestyle': '--',
+               'linestyle': '-',
+               'xlims': [1.05*round(first_frame_df[x_var].min(),1),
+                         1.1*round(last_frame_df[x_var].max(),1)],
+               'ylims': [1.05*round(first_frame_df[y_var].min(),1),
+                         1.05*round(last_frame_df[y_var].max(),1)],
+               'log_x': True
+               }
+    
+    subplot_cols = 3
+    subplot_dims = [int(round((num_categories)/subplot_cols,0)), subplot_cols]
+    
+    # calculate strain range bounds
+    max_category_band = round(mask_frame_df[category_var].quantile(0.98),2)
+    min_category_band = round(mask_frame_df[category_var].min(),2)
+    
+    category_ranges = np.linspace(min_category_band, max_category_band, 
+                                  num_categories)
+    
+    # find indices of points on sample belonging to each category
+    category_indices = find_points_in_categories(num_categories, category_ranges, 
+                                  category_var, mask_frame_df)
+    
+    if load_multiple_frames:
+        plot_var_classes_over_time(subplot_dims, analysis_params, plot_params, 
+                                   num_categories, category_indices, 
+                                   category_ranges, plot_frame_range, 
+                                   load_multiple_frames, dir_gom_results, 
+                                   img_scale, time_mapping, orientation, ec,
+                                   c, data_df)
+    else:
+        plot_var_classes_over_time(subplot_dims, analysis_params, plot_params, 
+                                   num_categories, category_indices, 
+                                   category_ranges, plot_frame_range, 
+                                   load_multiple_frames, dir_gom_results, 
+                                   img_scale, time_mapping, orientation, ec, c)
+        
+#%% ----- overlay physical locaitons of clusters on sample -----
+if 'overlay_pts_on_sample' in plots_to_generate:
+        
+    # ------------------------------------------------------------------------
+    # ----- initialize plot vars -----
+    # ------------------------------------------------------------------------
+    num_categories = 6
+    category_var = 'Eyy'
+    # compute aspect ratio of sample to set figure size
+    width = first_frame_df['x_mm'].max() - first_frame_df['x_mm'].min()
+    height = first_frame_df['y_mm'].max() - first_frame_df['y_mm'].min()
+    axis_buffer = 1
+    fig_width = 2.5
+    fig_height = height*axis_buffer/width*fig_width
+    
+    # define plot parameters dictionary
+    plot_params = {'figsize': (fig_width,fig_height),
+               'xlabel': 'x (mm)',
+               'ylabel': 'y (mm)',
+               'ref_c': '#D0D3D4',
+               'ref_ec': '#D0D3D4',
+               'ref_alpha': 0.3,
+               'cluster_alpha': 1.0,
+               'tight_layout': False,
+               'axes_scaled': True,
+               'grid_alpha': 0.5,
+               'm_size': 2,
+               'm_legend_size': 7,
+               'm_alpha': 0.4,
+               'fontsize': 5,
+               'linewidth': 0,
+               'linestyle': '-',
+               'xlims': [0.95*round(first_frame_df['x_mm'].min(),1),
+                         1.05*round(first_frame_df['x_mm'].max(),1)],
+               'ylims': [0.95*round(first_frame_df['y_mm'].min(),1),
+                         1.05*round(first_frame_df['y_mm'].max(),1)],
+               }
+    
+     # calculate strain range bounds
+    max_category_band = round(mask_frame_df[category_var].quantile(0.85),2)
+    min_category_band = round(mask_frame_df[category_var].min(),2)
+    
+    category_ranges = np.linspace(min_category_band, max_category_band, 
+                                  num_categories)
+    
+    # find indices of points on sample belonging to each category
+    category_indices = find_points_in_categories(num_categories, category_ranges, 
+                                  category_var, mask_frame_df)
+
+    if load_multiple_frames:
+        overlay_pts_on_sample(plot_params, mask_frame, num_categories, 
+                              category_indices, category_ranges, 
+                              plot_frame_range, load_multiple_frames, 
+                              dir_gom_results, img_scale, c, data_df)
+    else:
+        overlay_pts_on_sample(plot_params, mask_frame, num_categories, 
+                              category_indices, category_ranges, 
+                              plot_frame_range, load_multiple_frames, 
+                              dir_gom_results, img_scale, c)
