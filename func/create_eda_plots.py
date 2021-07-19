@@ -233,9 +233,9 @@ def plot_var_classes_over_time(subplot_dims, analysis_params, plot_params,
         Figure
 
     '''
-    # ----------------------------------------------------------------------------
+    # ------------------------------------------------------------------------
     # ----- create figure -----
-    # ----------------------------------------------------------------------------
+    # ------------------------------------------------------------------------
     fig, axs = plt.subplots(subplot_dims[0], subplot_dims[1], 
                             figsize=plot_params['figsize'], sharey=True)
      
@@ -335,11 +335,11 @@ def plot_var_classes_over_time(subplot_dims, analysis_params, plot_params,
     plt.show()
     
     
-def overlay_pts_on_sample(plot_params, mask_frame,
-                          num_categories, category_indices, category_ranges, 
-                          plot_frame_range, load_multiple_frames, dir_results, 
+def overlay_pts_on_sample(plot_params, mask_frame, num_categories, 
+                          category_indices, category_ranges, 
+                          load_multiple_frames, dir_results, 
                           img_scale, c, data_df = None):
-    '''Generate histogram for mulitple frames in separate subplots
+    '''Overlay location of cluster points on undeformed sample
     
     Args: 
         plot_params (dict): dictionary of parameters to customize plot
@@ -351,8 +351,7 @@ def overlay_pts_on_sample(plot_params, mask_frame,
         load_multiple_frames (bool): flag to process in batch or frame-by-frame
         dir_results (str): dic results dictionary
         img_scale (float): mm/pixel scale for images
-        orientation (str): orientation of sample in field of view
-        ec (array): list of possible marker edge colours
+        c (array): list of possible marker colours
         data_df (dataframe, optional): pre-loaded results from all frames in
             one data structure
             
@@ -360,10 +359,12 @@ def overlay_pts_on_sample(plot_params, mask_frame,
         Figure
 
     '''
-    
+    # ------------------------------------------------------------------------
+    # ----- create figure -----
+    # ------------------------------------------------------------------------
     f = plt.figure(figsize = plot_params['figsize'])
     ax = f.add_subplot(1,1,1)
-    
+    # ---------- load data for reference and mask frames ----------
     if load_multiple_frames: 
             frame_df = data_df[data_df['frame'] == mask_frame]
             reference_df = data_df[data_df['frame'] == 1]
@@ -402,14 +403,12 @@ def overlay_pts_on_sample(plot_params, mask_frame,
     if plot_params['axes_scaled']:
         ax.axis('scaled')
     
-    # shrink current axes box to place legend overhead with axes labels
-    # Shrink current axis's height by 10% on the bottom
+    # ----- customize legend -----
     box = ax.get_position()
     ax.set_position(
         [box.x0, box.y0 + box.height * 0.25,
          box.width, box.height * 0.5]
         )
-    
     legend = ax.legend(
         fontsize = 3, loc='upper center', ncol=3, 
         bbox_to_anchor=(0.5, 1.13), fancybox = False

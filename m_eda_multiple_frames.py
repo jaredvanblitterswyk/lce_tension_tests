@@ -334,7 +334,6 @@ if 'scatter_var_categories' in plots_to_generate:
         
 #%% ----- overlay physical locaitons of clusters on sample -----
 if 'overlay_pts_on_sample' in plots_to_generate:
-        
     # ------------------------------------------------------------------------
     # ----- initialize plot vars -----
     # ------------------------------------------------------------------------
@@ -370,7 +369,7 @@ if 'overlay_pts_on_sample' in plots_to_generate:
                          1.05*round(first_frame_df['y_mm'].max(),1)],
                }
     
-     # calculate strain range bounds
+    # calculate strain range bounds
     max_category_band = round(mask_frame_df[category_var].quantile(0.85),2)
     min_category_band = round(mask_frame_df[category_var].min(),2)
     
@@ -384,10 +383,12 @@ if 'overlay_pts_on_sample' in plots_to_generate:
     if load_multiple_frames:
         overlay_pts_on_sample(plot_params, mask_frame, num_categories, 
                               category_indices, category_ranges, 
-                              plot_frame_range, load_multiple_frames, 
-                              dir_gom_results, img_scale, c, data_df)
+                              load_multiple_frames, dir_gom_results, 
+                              img_scale, c, data_df)
     else:
         overlay_pts_on_sample(plot_params, mask_frame, num_categories, 
                               category_indices, category_ranges, 
-                              plot_frame_range, load_multiple_frames, 
-                              dir_gom_results, img_scale, c)
+                              load_multiple_frames, dir_gom_results, 
+                              img_scale, c)
+        
+#%% ----- check compressibility for each cluster -----
