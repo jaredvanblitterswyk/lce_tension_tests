@@ -11,12 +11,15 @@ import pandas as pd
 import numpy as np
 import matplotlib as mpl
 import matplotlib.pyplot as plt
-from func.create_eda_plots import (create_simple_scatter, generate_histogram, 
+from func.create_eda_plots import (create_simple_scatter, 
+                                   generate_histogram, 
                                    generate_boxplot_vs_frame,
                                    plot_var_classes_over_time,
                                    overlay_pts_on_sample,
-                                   plot_compressibility_check_clusters)
-from func.df_extract_transform import (add_features, return_frame_dataframe, 
+                                   plot_compressibility_check_clusters,
+                                   plot_var_vs_time_clusters)
+from func.df_extract_transform import (add_features, 
+                                       return_frame_dataframe, 
                                        return_points_in_all_frames,
                                        find_points_in_categories)
 from func.mts_extract_data import extract_mts_data
@@ -56,11 +59,14 @@ mask_frame = 9 # frame to use to mask points
 post_mask_frame = 25 # frame to compare to mask to determine if strain inc/dec
 img_scale = 0.01568 # image scale (mm/pix)
 
-# colour and edge colour arrays (hard coded to 10 or less strain bands)
+# colour and edge colour arrays (hard coded to 7 or less strain bands)
 ec = ['#917265', '#896657', '#996f71', '#805a66', '#453941',
       '#564e5c', '#32303a']
 c = ['#d1c3bd', '#ccb7ae', '#b99c9d', '#a6808c', '#8b7382',
      '#706677', '#565264']
+# color and edge colour arrays for two sereies/clusters
+ec2 = ['#917265', '#564e5c']
+c2 = ['#d1c3bd', '#706677']
 
 # load in colormap
 cm_data = np.loadtxt('Z:/Python/mpl_styles/'+cmap_name+'.txt')
@@ -78,7 +84,7 @@ results_files = [f for f in os.listdir(dir_gom_results) if f.endswith('.pkl')]
 num_frames = len(results_files)
 
 # plots to generate
-plots_to_generate = ['compressibility_check', 
+plots_to_generate = ['plot_var_vs_time_relative_change', 
                      'next_plot'
                      ]
 #%% ----- LOAD DATA -----
@@ -397,7 +403,7 @@ if 'overlay_pts_on_sample_relative' in plots_to_generate:
                          1.05*round(first_frame_df['y_mm'].max(),1)],
                }
     
-    # add features for change in category var between frames    
+    # define series representing change in category var between frames    
     category_ranges = [-np.inf, 0]
         
     diff_df = pd.DataFrame()
@@ -411,12 +417,12 @@ if 'overlay_pts_on_sample_relative' in plots_to_generate:
         overlay_pts_on_sample(plot_params, mask_frame, num_categories, 
                               category_indices, category_ranges, 
                               load_multiple_frames, dir_gom_results, 
-                              img_scale, c, data_df)
+                              img_scale, c2, data_df)
     else:
         overlay_pts_on_sample(plot_params, mask_frame, num_categories, 
                               category_indices, category_ranges, 
                               load_multiple_frames, dir_gom_results, 
-                              img_scale, c)
+                              img_scale, c2)
     
         
 #%% ----- check compressibility for each cluster -----
@@ -489,3 +495,65 @@ if 'compressibility_check' in plots_to_generate:
                                        plot_frame_range,
                                        load_multiple_frames, dir_gom_results, 
                                        c, ec)
+        
+#%% ----- PLOT STRESS vs TIME FOR REGIONS WHICH CONTRACT/EXTEND -----
+if 'plot_var_vs_time_clusters' in plots_to_generate:
+    num_categories = 2
+    x_var = 'time'
+    y_var = 'Eyy'
+    category_var = 'dEyy/dt'
+    
+    # define analysis parameters dictionary
+    analysis_params = {'x_var': x_var,
+                       'y_var': y_var,
+                       'cat_var': category_var,
+                       'samples': 8000,
+                       }
+    
+    # define plot parameters dictionary
+    plot_params = {'figsize': (3,3),
+               'xlabel': y_var,
+               'ylabel': x_var,
+               'labels': [category_var+' < 0', category_var+ ' >= 0'],
+               'cluster_alpha': 0.5,
+               'tight_layout': False,
+               'grid_alpha': 0.5,
+               'm_size': 4,
+               'm_legend_size': 7,
+               'm_alpha': 1,
+               'fontsize': 5,
+               'legend_fontsize': 4,
+               'linewidth': 0.8,
+               'linestyle1': '--',
+               'linestyle2': '-',
+               'xlims': [1.2*round(first_frame_df[x_var].min(),1),
+                         1.2*round(last_frame_df[x_var].quantile(0.995),2)],
+               'ylims': [1.2*round(first_frame_df[y_var].quantile(0.995),2),
+                         1.2*round(last_frame_df[y_var].quantile(0.001),2)],
+               'log_x': True
+               }
+
+    # define series representing change in category var between frames    
+    category_ranges = [-np.inf, 0]
+        
+    diff_df = pd.DataFrame()
+    
+    diff_df[category_var] = last_frame_df[y_var] - first_frame_rel_df[y_var]
+            
+    category_indices = find_points_in_categories(num_categories, category_ranges, 
+                                  category_var, diff_df)
+
+    category_df = first_frame_df[first_frame_df.index.isin(category_indices[0].values)]
+    
+    if load_multiple_frames:
+        plot_var_vs_time_relative_change(analysis_params, plot_params, 
+                               num_categories, category_indices, 
+                               plot_frame_range, load_multiple_frames, 
+                               dir_gom_results, img_scale, time_mapping, 
+                               orientation, ec2, c2, data_df)
+    else:
+        plot_var_vs_time_relative_change(analysis_params, plot_params, 
+                           num_categories, category_indices, 
+                           plot_frame_range, load_multiple_frames, 
+                           dir_gom_results, img_scale, time_mapping, 
+                           orientation, ec2, c2)
