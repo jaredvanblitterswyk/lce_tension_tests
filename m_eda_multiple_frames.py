@@ -14,7 +14,8 @@ import matplotlib.pyplot as plt
 from func.create_eda_plots import (create_simple_scatter, generate_histogram, 
                                    generate_boxplot_vs_frame,
                                    plot_var_classes_over_time,
-                                   overlay_pts_on_sample)
+                                   overlay_pts_on_sample,
+                                   plot_compressibility_check_clusters)
 from func.df_extract_transform import (add_features, return_frame_dataframe, 
                                        return_points_in_all_frames,
                                        find_points_in_categories)
@@ -47,6 +48,7 @@ load_multiple_frames = False # load single frames flag
 orientation = 'vertical'
 frame_max = 13 # max frame to consider
 frame_min = 1 # min frame to plot
+frame_rel_min = 5 # start frame for computing relative change between frames
 frame_range = frame_max - frame_min
 plot_frame_range = [frame_min, frame_max] # range of frames to plot
 end_frame = 30 # manually define last frame where all points still in FOV
@@ -76,7 +78,7 @@ results_files = [f for f in os.listdir(dir_gom_results) if f.endswith('.pkl')]
 num_frames = len(results_files)
 
 # plots to generate
-plots_to_generate = ['overlay_pts_on_sample', 
+plots_to_generate = ['compressibility_check', 
                      'next_plot'
                      ]
 #%% ----- LOAD DATA -----
@@ -124,6 +126,7 @@ if load_multiple_frames:
     # separate frames of interest
     mask_frame_df = data_df[data_df['frame'] == mask_frame]
     first_frame_df = data_df[data_df['frame'] == frame_min]
+    first_frame_rel_df = data_df[data_df['frame'] == frame_rel_min]
     last_frame_df = data_df[data_df['frame'] == frame_max]
     frame_end_df = data_df[data_df['frame'] == end_frame]
   
@@ -134,51 +137,16 @@ else:
     # define frames of interest
     mask_frame_df = return_frame_dataframe(mask_frame, dir_gom_results)
     first_frame_df = return_frame_dataframe(frame_min, dir_gom_results)
+    first_frame_rel_df = return_frame_dataframe(frame_rel_min, dir_gom_results)
     last_frame_df = return_frame_dataframe(frame_max, dir_gom_results)
     frame_end_df = return_frame_dataframe(end_frame, dir_gom_results)
     
     # add time independent features
     mask_frame_df = add_features(mask_frame_df, img_scale, time_mapping, orientation)
     first_frame_df = add_features(first_frame_df, img_scale, time_mapping, orientation)
+    first_frame_rel_df = add_features(first_frame_rel_df, img_scale, time_mapping, orientation)
     last_frame_df = add_features(last_frame_df, img_scale, time_mapping, orientation)
     frame_end_df = add_features(frame_end_df, img_scale, time_mapping, orientation)
-
-'''
-# ----------------------------------------------------------------------------
-# ----- calculate temporal change in strain and incr/decr flag -----
-# ----------------------------------------------------------------------------
-''' 
-'''
-Procedure:
-1) extract first two frames with all points that appear over the full test
-2) use this temp df to extract the indices of all points
-3) the spacing between points is constant across frames so consider one case
-4) use the row spacing between the same points to compute the strain diff
-5) store in separate df with flag to indicate if point relaxes or extends w t
-'''
-'''
-# extract points in first two frames  
-temp_df = pts_in_all_frames_df[pts_in_all_frames_df['frame'] <= 2 ]
-
-pt_indices = temp_df.index
-# find index spacing of one point
-indices_single_pt = [i for i, x in enumerate(pt_indices) if x == pt_indices[0]]
-pts_period = indices_single_pt[1] - indices_single_pt[0]
-
-pts_in_all_frames_df['dEyy_dt'] = pts_in_all_frames_df['Eyy'].diff(periods = pts_period)  
-pts_in_all_frames_df['dsigma_dt'] = pts_in_all_frames_df['stress_mpa'].diff(periods = pts_period)   
-
-# add feature indicating if temporally increasing or decreasing beyond mask frame
-# create dictionary mapping indices to value (0 or 1)
-mask_df = pts_in_all_frames_df[pts_in_all_frames_df['frame'] == mask_frame]
-post_mask_df = pts_in_all_frames_df[pts_in_all_frames_df['frame'] == post_mask_frame]
-
-deyy_dt = mask_df[['Eyy']] - post_mask_df[['Eyy']]
-deyy_dt_bool = (deyy_dt > 0).astype(int)
-
-# create separate data frame with coordinates and bool mapping for strain incr.
-first_frame_df['dEyy_dt_cat'] = deyy_dt_bool
-'''
 
 #%% ----- EXPLORATORY DATA ANALYSIS -----
 # ----- plot histogram and box plot of strain for each frame -----
@@ -332,8 +300,8 @@ if 'scatter_var_categories' in plots_to_generate:
                                    load_multiple_frames, dir_gom_results, 
                                    img_scale, time_mapping, orientation, ec, c)
         
-#%% ----- overlay physical locaitons of clusters on sample -----
-if 'overlay_pts_on_sample' in plots_to_generate:
+#%% ----- overlay physical locations of clusters on sample - variable mag -----
+if 'overlay_pts_on_sample_var' in plots_to_generate:
     # ------------------------------------------------------------------------
     # ----- initialize plot vars -----
     # ------------------------------------------------------------------------
@@ -369,7 +337,7 @@ if 'overlay_pts_on_sample' in plots_to_generate:
                          1.05*round(first_frame_df['y_mm'].max(),1)],
                }
     
-    # calculate strain range bounds
+    # calculate variable magnitude range bounds
     max_category_band = round(mask_frame_df[category_var].quantile(0.85),2)
     min_category_band = round(mask_frame_df[category_var].min(),2)
     
@@ -391,4 +359,133 @@ if 'overlay_pts_on_sample' in plots_to_generate:
                               load_multiple_frames, dir_gom_results, 
                               img_scale, c)
         
+#%% ----- overlay physical locations of clusters on sample - rel inc/decr -----
+if 'overlay_pts_on_sample_relative' in plots_to_generate:
+    # ------------------------------------------------------------------------
+    # ----- initialize plot vars -----
+    # ------------------------------------------------------------------------
+    num_categories = 2
+    var_interest = 'Eyy'
+    category_var = 'dEyy/dt'
+    # compute aspect ratio of sample to set figure size
+    width = first_frame_df['x_mm'].max() - first_frame_df['x_mm'].min()
+    height = first_frame_df['y_mm'].max() - first_frame_df['y_mm'].min()
+    axis_buffer = 1
+    fig_width = 2.5
+    fig_height = height*axis_buffer/width*fig_width
+    
+    # define plot parameters dictionary
+    plot_params = {'figsize': (fig_width,fig_height),
+               'xlabel': 'x (mm)',
+               'ylabel': 'y (mm)',
+               'ref_c': '#D0D3D4',
+               'ref_ec': '#D0D3D4',
+               'ref_alpha': 0.3,
+               'cluster_alpha': 1.0,
+               'tight_layout': False,
+               'axes_scaled': True,
+               'grid_alpha': 0.5,
+               'm_size': 2,
+               'm_legend_size': 7,
+               'm_alpha': 0.4,
+               'fontsize': 5,
+               'linewidth': 0,
+               'linestyle': '-',
+               'xlims': [0.95*round(first_frame_df['x_mm'].min(),1),
+                         1.05*round(first_frame_df['x_mm'].max(),1)],
+               'ylims': [0.95*round(first_frame_df['y_mm'].min(),1),
+                         1.05*round(first_frame_df['y_mm'].max(),1)],
+               }
+    
+    # add features for change in category var between frames    
+    category_ranges = [-np.inf, 0]
+        
+    diff_df = pd.DataFrame()
+    
+    diff_df[category_var] = last_frame_df[var_interest] - first_frame_rel_df[var_interest]
+            
+    category_indices = find_points_in_categories(num_categories, category_ranges, 
+                                  category_var, diff_df)
+    
+    if load_multiple_frames:
+        overlay_pts_on_sample(plot_params, mask_frame, num_categories, 
+                              category_indices, category_ranges, 
+                              load_multiple_frames, dir_gom_results, 
+                              img_scale, c, data_df)
+    else:
+        overlay_pts_on_sample(plot_params, mask_frame, num_categories, 
+                              category_indices, category_ranges, 
+                              load_multiple_frames, dir_gom_results, 
+                              img_scale, c)
+    
+        
 #%% ----- check compressibility for each cluster -----
+if 'compressibility_check' in plots_to_generate:
+    # ------------------------------------------------------------------------
+    # ----- initialize plot vars -----
+    # ------------------------------------------------------------------------
+    num_categories = 6
+    category_var = 'Eyy'
+    y_var = 'Exx'
+    x_var = 'Eyy'
+    
+    x_fit = np.linspace(0,3,500) # Eyy
+    y_fit_1 = 0.5*(1/(2*x_fit+1) - 1)
+    y_fit_2 = 0.5*(1/np.sqrt(1+2*x_fit) - 1)
+    
+    # define analysis parameters dictionary
+    analysis_params = {'x_var': x_var,
+                       'y_var': y_var,
+                       'cat_var': category_var,
+                       'samples': 8000,
+                       'x_fit': x_fit,
+                       'y_fit_1': y_fit_1,
+                       'y_fit_2': y_fit_2
+                       }
+    
+    # define plot parameters dictionary
+    plot_params = {'figsize': (3,3),
+               'xlabel': y_var,
+               'ylabel': x_var,
+               'y_fit_1_label': '$\lambda_x = \lambda_y^{-1}$',
+               'y_fit_2_label': '$\lambda_x = \lambda_y^{-1/2}$',
+               'cluster_alpha': 0.5,
+               'tight_layout': False,
+               'grid_alpha': 0.5,
+               'm_size': 4,
+               'm_legend_size': 7,
+               'm_alpha': 0.5,
+               'fontsize': 5,
+               'legend_fontsize': 4,
+               'linewidth': 0.8,
+               'linestyle1': '--',
+               'linestyle2': '-',
+               'xlims': [1.2*round(first_frame_df[x_var].min(),1),
+                         1.2*round(last_frame_df[x_var].quantile(0.995),2)],
+               'ylims': [1.2*round(first_frame_df[y_var].quantile(0.995),2),
+                         1.2*round(last_frame_df[y_var].quantile(0.001),2)]
+               }
+    
+    # calculate variable magnitude range bounds
+    max_category_band = round(mask_frame_df[category_var].quantile(0.85),2)
+    min_category_band = round(mask_frame_df[category_var].min(),2)
+    
+    category_ranges = np.linspace(min_category_band, max_category_band, 
+                                  num_categories)
+    
+    # find indices of points on sample belonging to each category
+    category_indices = find_points_in_categories(num_categories, category_ranges, 
+                                  category_var, mask_frame_df)
+
+    if load_multiple_frames:
+        plot_compressibility_check_clusters(analysis_params, plot_params, 
+                                       num_categories, category_indices, 
+                                       plot_frame_range,
+                                       load_multiple_frames, dir_gom_results, 
+                                       c, ec, data_df)
+    else:
+        plot_compressibility_check_clusters(analysis_params, plot_params, 
+                                       num_categories, category_indices, 
+                                       plot_frame_range,
+                                       load_multiple_frames, dir_gom_results, 
+                                       c, ec)

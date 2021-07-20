@@ -422,3 +422,91 @@ def overlay_pts_on_sample(plot_params, mask_frame, num_categories,
         plt.tight_layout()
         
     plt.show()
+    
+def plot_compressibility_check_clusters(analysis_params, plot_params, 
+                                       num_categories, category_indices, 
+                                       plot_frame_range, load_multiple_frames,
+                                       dir_results, c, ec, data_df = None):
+    '''Plot strain tensor components to check compressibility behaviour
+    
+    Args:
+        analysis_params (dict): variables used for plot on x,y and categories
+        plot_params (dict): dictionary of parameters to customize plot
+        num_categories (int): number of categories used to cluster points
+        category_indices (dict): contains index series of points corresponding
+            to each category
+        plot_frame_range (array): min and max frame numbers to plot
+        load_multiple_frames (bool): flag to process in batch or frame-by-frame
+        dir_results (str): dic results dictionary
+        img_scale (float): mm/pixel scale for images
+        c (array): list of possible marker colours
+        ec (array): list of possible marker edge colours
+        data_df (dataframe, optional): pre-loaded results from all frames in
+            one data structure
+            
+    Returns:
+        Figure
+
+    '''
+    # ------------------------------------------------------------------------
+    # ----- create figure -----
+    # ------------------------------------------------------------------------
+    f = plt.figure(figsize = plot_params['figsize'])
+    ax = f.add_subplot(1,1,1)
+    
+    # compare against incompressible relationship    
+    ax.plot(
+        analysis_params['x_fit'], analysis_params['y_fit_1'], 
+        linewidth = plot_params['linewidth'], 
+        linestyle = plot_params['linestyle1'], c = 'k',  
+        label = plot_params['y_fit_1_label'])
+    ax.plot(
+        analysis_params['x_fit'], analysis_params['y_fit_2'], 
+        linewidth = plot_params['linewidth'],
+        linestyle = plot_params['linestyle2'], c = 'k', 
+        label = plot_params['y_fit_2_label'])
+    
+    for i in range(plot_frame_range[0],plot_frame_range[1]+1):
+    # ---------- load data for current frame ----------
+        if load_multiple_frames: 
+            frame_df = data_df[data_df['frame'] == i]
+        else:
+            frame_df = return_frame_dataframe(i, dir_results)
+            
+        for j in range(0,num_categories):
+            
+            category_df = frame_df[frame_df.index.isin(category_indices[j].values)]
+            
+            if category_df.shape[0] > analysis_params['samples']:
+                category_sample = category_df.sample(
+                    n = analysis_params['samples'], random_state = 1
+                    )
+            else:
+                category_sample = category_df.copy()
+        
+            # ---------- add data ----------
+            ax.scatter(category_sample[analysis_params['x_var']],
+                                 category_sample[analysis_params['y_var']], 
+                                 s = plot_params['m_size'], c = c[j], 
+                                 edgecolors = ec[j], 
+                                 alpha = plot_params['m_alpha'], 
+                                 linewidths = plot_params['linewidth'],
+                                 label = 'Cluster: ' + str(j)
+                                 )
+        if i == plot_frame_range[0]:
+            # add legend on first pass
+            legend = ax.legend(loc='upper right', 
+                               fontsize = plot_params['legend_fontsize'])
+            legend.get_frame().set_linewidth(plot_params['linewidth'])
+    
+    # set axes parameters
+    ax.set_ylim(plot_params['ylims'])
+    ax.set_xlim(plot_params['xlims'])
+    ax.set_ylabel(analysis_params['y_var'], 
+                            fontsize = plot_params['fontsize'])
+    ax.set_xlabel(analysis_params['x_var'], 
+                            fontsize = plot_params['fontsize'])
+    ax.tick_params(labelsize = plot_params['fontsize'])
+    ax.grid(True, alpha = plot_params['grid_alpha'], zorder = 0)
+
+    plt.show()
