@@ -50,13 +50,13 @@ mts_col_dtypes = {'time':'float',
 
 load_multiple_frames = False # load single frames flag
 orientation = 'vertical'
-frame_max = 13 # max frame to consider
+frame_max = 34 # max frame to consider
 frame_min = 1 # min frame to plot
 frame_rel_min = 5 # start frame for computing relative change between frames
 frame_range = frame_max - frame_min
 plot_frame_range = [frame_min, frame_max] # range of frames to plot
-end_frame = 30 # manually define last frame where all points still in FOV
-mask_frame = 9 # frame to use to mask points 
+end_frame = 34 # manually define last frame where all points still in FOV
+mask_frame = 5 # frame to use to mask points 
 post_mask_frame = 25 # frame to compare to mask to determine if strain inc/dec
 img_scale = 0.01568 # image scale (mm/pix)
 
@@ -68,6 +68,10 @@ c = ['#d1c3bd', '#ccb7ae', '#b99c9d', '#a6808c', '#8b7382',
 # color and edge colour arrays for two sereies/clusters
 ec2 = ['#917265', '#564e5c']
 c2 = ['#d1c3bd', '#706677']
+
+# color and edge colour arrays for two sereies/clusters
+ec1 = ['#564e5c']
+c1 = ['#706677']
 
 # load in colormap
 cm_data = np.loadtxt('Z:/Python/mpl_styles/'+cmap_name+'.txt')
@@ -85,18 +89,17 @@ results_files = [f for f in os.listdir(dir_gom_results) if f.endswith('.pkl')]
 num_frames = len(results_files)
 
 # plots to generate
-plots_to_generate = ['histogram',
-                     'boxplot',
+plots_to_generate = ['compressibility_check',
+                     'plot_var_vs_time_clusters',
+                     'plot_norm_stress_strain_rates_vs_time'
+                     ]
+
+other_plots = ['boxplot',
                      'plot_var_vs_time_clusters',
                      'global_stress_strain',
                      'scatter_var_categories',
                      'overlay_pts_on_sample_var',
-                     'overlay_pts_on_sample_relative',
-                     'compressibility_check',
-                     'plot_var_vs_time_clusters',
-                     'plot_norm_stress_strain_rates_vs_time', 
-                     'next_plot'
-                     ]
+                     'overlay_pts_on_sample_relative']
 #%% ----- LOAD DATA -----
 # ----------------------------------------------------------------------------
 # ----- load in frame-time mapping file -----
@@ -136,6 +139,7 @@ if load_multiple_frames:
     data_df = data_df.dropna(axis = 0)
 
 #%% ----- ADD FEATURES AND DEFINE KEY FRAME DATAFRAMES -----
+print('Load data for key frames and add features')
 if load_multiple_frames:
     # add time independent features
     data_df = add_features(data_df, img_scale, time_mapping, orientation)
@@ -167,22 +171,23 @@ else:
 #%% ----- EXPLORATORY DATA ANALYSIS -----
 # ----- plot histogram and box plot of strain for each frame -----
 if 'histogram' in plots_to_generate:
+    print('Plotting: histogram')
     # ------------------------------------------------------------------------
     # ----- initialize plot vars -----
     # ------------------------------------------------------------------------
-    
     subplot_cols = 6
     subplot_dims = [int(round((frame_range)/subplot_cols,0)), subplot_cols]
     plot_var = 'Eyy'
     
     # compile plot params in dictionary
     plot_params = {'n_bins': 20, 
-                   'xlims': [1.05*frame_max_df[plot_var].min(),
-                             1.05*frame_max_df[plot_var].max()],
+                   'xlims': [1.05*last_frame_df[plot_var].min(),
+                             1.05*last_frame_df[plot_var].max()],
                    'ylabel': plot_var,
                    'grid_alpha': 0.5,
                    'fontsize': 5,
                    'annot_linestyle': '--',
+                   'linewidth': 0.4,
                    'annot_linewidth': 0.4,
                    'annot_fontsize': 4
                    }
@@ -202,7 +207,10 @@ if 'histogram' in plots_to_generate:
 # ----------------------------------------------------------------------------
 # compile plot params in dictionary
 if 'boxplot' in plots_to_generate:
-    
+    print('Plotting: boxplot')
+    # ------------------------------------------------------------------------
+    # ----- initialize plot vars -----
+    # ------------------------------------------------------------------------    
     mpl.rcParams['lines.marker']=''
     
     plot_var = 'Eyy'
@@ -223,12 +231,15 @@ if 'boxplot' in plots_to_generate:
     else:
         generate_boxplot_vs_frame(plot_var, plot_params, plot_frame_range,
                               load_multiple_frames, dir_gom_results, img_scale, 
-                              time_mapping, orientation, data_df)
+                              time_mapping, orientation)
         
 #%% ----- Plot global stress-strain curve -----
 # ----------------------------------------------------------------------------
 if 'global_stress_strain' in plots_to_generate:
-    
+    print('Plotting: global_stress_strain')
+    # ------------------------------------------------------------------------
+    # ----- initialize plot vars -----
+    # ------------------------------------------------------------------------
     plot_params = {'figsize': (4,2),
                'm_size': 2,
                'linewidth': 0.5,
@@ -245,14 +256,15 @@ if 'global_stress_strain' in plots_to_generate:
     if load_multiple_frames:
         create_simple_scatter(plot_vars, plot_params, plot_frame_range,
                           load_multiple_frames, dir_gom_results, img_scale, 
-                          time_mapping, orientation, ec, c, data_df)
+                          time_mapping, orientation, ec1, c1, data_df)
     else:
         create_simple_scatter(plot_vars, plot_params, plot_frame_range,
                           load_multiple_frames, dir_gom_results, img_scale, 
-                          time_mapping, orientation, ec, c)
+                          time_mapping, orientation, ec1, c1)
         
 #%% --- Plot classes of data vs frame based on value in a specified frame ---
 if 'scatter_var_categories' in plots_to_generate:
+    print('Plotting: scatter_var_categories')
     # ------------------------------------------------------------------------
     # ----- initialize plot vars -----
     # ------------------------------------------------------------------------
@@ -318,6 +330,7 @@ if 'scatter_var_categories' in plots_to_generate:
         
 #%% ----- overlay physical locations of clusters on sample - variable mag -----
 if 'overlay_pts_on_sample_var' in plots_to_generate:
+    print('Plotting: overlay_pts_on_sample_var')
     # ------------------------------------------------------------------------
     # ----- initialize plot vars -----
     # ------------------------------------------------------------------------
@@ -377,6 +390,7 @@ if 'overlay_pts_on_sample_var' in plots_to_generate:
         
 #%% ----- overlay physical locations of clusters on sample - rel inc/decr -----
 if 'overlay_pts_on_sample_relative' in plots_to_generate:
+    print('Plotting: overlay_pts_on_sample_relative')
     # ------------------------------------------------------------------------
     # ----- initialize plot vars -----
     # ------------------------------------------------------------------------
@@ -437,6 +451,7 @@ if 'overlay_pts_on_sample_relative' in plots_to_generate:
         
 #%% ----- check compressibility for each cluster -----
 if 'compressibility_check' in plots_to_generate:
+    print('Plotting: compressibility_check')
     # ------------------------------------------------------------------------
     # ----- initialize plot vars -----
     # ------------------------------------------------------------------------
@@ -508,6 +523,7 @@ if 'compressibility_check' in plots_to_generate:
         
 #%% ----- PLOT STRESS vs TIME FOR REGIONS WHICH CONTRACT/EXTEND -----
 if 'plot_var_vs_time_clusters' in plots_to_generate:
+    print('Plotting: plot_var_vs_time_clusters')
     num_categories = 2
     x_var = 'time'
     y_var = 'Eyy'
@@ -556,13 +572,13 @@ if 'plot_var_vs_time_clusters' in plots_to_generate:
     category_df = first_frame_df[first_frame_df.index.isin(category_indices[0].values)]
     
     if load_multiple_frames:
-        plot_var_vs_time_relative_change(analysis_params, plot_params, 
+        plot_var_vs_time_clusters(analysis_params, plot_params, 
                                num_categories, category_indices, 
                                plot_frame_range, load_multiple_frames, 
                                dir_gom_results, img_scale, time_mapping, 
                                orientation, ec2, c2, data_df)
     else:
-        plot_var_vs_time_relative_change(analysis_params, plot_params, 
+        plot_var_vs_time_clusters(analysis_params, plot_params, 
                            num_categories, category_indices, 
                            plot_frame_range, load_multiple_frames, 
                            dir_gom_results, img_scale, time_mapping, 
@@ -570,6 +586,7 @@ if 'plot_var_vs_time_clusters' in plots_to_generate:
         
 #%% ----- PLOT NORMALIZED STRESS AND STRAIN RATES -----
 if 'plot_norm_stress_strain_rates_vs_time' in plots_to_generate:
+    print('Plotting: plot_norm_stress_strain_rates_vs_time')
     num_categories = 2
     x_var = 'time'
     y_var = 'Eyy'

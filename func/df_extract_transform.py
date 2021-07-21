@@ -38,7 +38,7 @@ def add_features(data_df, img_scale, time_mapping, orientation):
     
     return data_df
 
-def return_frame_df(frame_no, dir_data):
+def return_frame_dataframe(frame_no, dir_data):
     # define file path
     save_filename = 'results_df_frame_' + '{:02d}'.format(frame_no) + '.pkl'
     current_filepath = os.path.join(dir_data,save_filename)
@@ -56,3 +56,24 @@ def return_points_in_all_frames(data_df, last_frame_df):
     data_all_df = data_df_copy[data_df_copy.index.isin(last_frame_df.index)]
     
     return data_all_df
+
+def find_points_in_categories(num_categories, category_ranges, 
+                              category_var, frame_df):
+    indices_dict = {}
+        
+    # --- loop through all categories, find points and plot ---
+    for j in range(0,num_categories):
+        if j == num_categories-1:
+            category_band_df = frame_df[
+                    frame_df[category_var] >= category_ranges[j]
+                ]   
+        else:
+            category_band_df = frame_df[(
+                    frame_df[category_var] >= category_ranges[j]
+                    ) & (
+                    frame_df[category_var] < category_ranges[j+1]
+                )]
+        # store index objects in dictionary
+        indices_dict[j] = category_band_df.index
+        
+    return indices_dict

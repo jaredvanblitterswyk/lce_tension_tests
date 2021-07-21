@@ -498,9 +498,10 @@ def plot_compressibility_check_clusters(analysis_params, plot_params,
             legend = ax.legend(loc='upper right', 
                                fontsize = plot_params['legend_fontsize'])
             legend.get_frame().set_linewidth(plot_params['linewidth'])
-            
+            '''
             for handle in legend.legendHandles:
                 handle.set_sizes([plot_params['m_legend_size']])
+            '''
     
     # set axes parameters
     ax.set_ylim(plot_params['ylims'])
