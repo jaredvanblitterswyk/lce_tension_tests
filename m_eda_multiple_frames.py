@@ -17,7 +17,8 @@ from func.create_eda_plots import (create_simple_scatter,
                                    plot_var_classes_over_time,
                                    overlay_pts_on_sample,
                                    plot_compressibility_check_clusters,
-                                   plot_var_vs_time_clusters)
+                                   plot_var_vs_time_clusters,
+                                   plot_norm_stress_strain_rates_vs_time)
 from func.df_extract_transform import (add_features, 
                                        return_frame_dataframe, 
                                        return_points_in_all_frames,
@@ -84,7 +85,16 @@ results_files = [f for f in os.listdir(dir_gom_results) if f.endswith('.pkl')]
 num_frames = len(results_files)
 
 # plots to generate
-plots_to_generate = ['plot_var_vs_time_relative_change', 
+plots_to_generate = ['histogram',
+                     'boxplot',
+                     'plot_var_vs_time_clusters',
+                     'global_stress_strain',
+                     'scatter_var_categories',
+                     'overlay_pts_on_sample_var',
+                     'overlay_pts_on_sample_relative',
+                     'compressibility_check',
+                     'plot_var_vs_time_clusters',
+                     'plot_norm_stress_strain_rates_vs_time', 
                      'next_plot'
                      ]
 #%% ----- LOAD DATA -----
@@ -557,3 +567,72 @@ if 'plot_var_vs_time_clusters' in plots_to_generate:
                            plot_frame_range, load_multiple_frames, 
                            dir_gom_results, img_scale, time_mapping, 
                            orientation, ec2, c2)
+        
+#%% ----- PLOT NORMALIZED STRESS AND STRAIN RATES -----
+if 'plot_norm_stress_strain_rates_vs_time' in plots_to_generate:
+    num_categories = 2
+    x_var = 'time'
+    y_var = 'Eyy'
+    y_var_2 = 'stress_mpa'
+    category_var = 'Eyy'
+    
+    # define analysis parameters dictionary
+    analysis_params = {'x_var': x_var,
+                       'y_var': y_var,
+                       'y_var_2': y_var_2,
+                       'cat_var': category_var,
+                       'normalize_y': False,
+                       'peak_frame_index': 2
+                       }
+    
+     # define plot parameters dictionary
+    plot_params = {'figsize': (3,3),
+               'xlabel': x_var,
+               'ylabel': 'norm(dX/dt)',
+               'labels_y1': [y_var+' < 0', y_var+ ' >= 0'],
+               'labels_y2': [y_var_2+' < 0', y_var_2+ ' >= 0'],
+               'cluster_alpha': 0.5,
+               'tight_layout': False,
+               'grid_alpha': 0.5,
+               'marker1': 'o',
+               'marker2': '^',
+               'm_size': 12,
+               'm_legend_size': 7,
+               'm_alpha': 1,
+               'fontsize': 5,
+               'legend_fontsize': 4,
+               'linewidth': 0.5,
+               'linestyle1': '--',
+               'linestyle2': '-',
+               'xlims': [1.2*round(first_frame_df[x_var].min(),1),
+                         1.2*round(last_frame_df[x_var].quantile(0.995),2)],
+               'ylims': [0.00001,
+                         1],
+               'log_x': True,
+               'log_y': True
+               }
+    
+    # define series representing change in category var between frames    
+    category_ranges = [-np.inf, 0]
+        
+    diff_df = pd.DataFrame()
+    
+    diff_df[category_var] = last_frame_df[y_var] - first_frame_rel_df[y_var]
+            
+    category_indices = find_points_in_categories(num_categories, category_ranges, 
+                                  category_var, diff_df)
+
+    category_df = first_frame_df[first_frame_df.index.isin(category_indices[0].values)]
+    
+    if load_multiple_frames:
+        plot_norm_stress_strain_rates_vs_time(analysis_params, plot_params, 
+                               num_categories, category_indices, 
+                               plot_frame_range, load_multiple_frames, 
+                               dir_gom_results, img_scale, time_mapping, 
+                               orientation, ec2, c2, data_df)
+    else:
+        plot_norm_stress_strain_rates_vs_time(analysis_params, plot_params, 
+                           num_categories, category_indices, 
+                           plot_frame_range, load_multiple_frames, 
+                           dir_gom_results, img_scale, time_mapping, 
+                           orientation, ec2, c2)    
