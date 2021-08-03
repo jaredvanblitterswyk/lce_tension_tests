@@ -39,18 +39,14 @@ sample_ext = '001_t03_r0X'
 gom_ext = 'gom_results'
 cmap_name = 'lajolla' # custom colormap stored in mpl_styles
 frame_map_filename = batch_ext+'_'+sample_ext+'_frame_time_mapping.csv'
-mts_columns = ['time', 'crosshead', 'load', 'trigger', 'cam_44', 'cam_43', 'trig_arduino']
-mts_col_dtypes = {'time':'float',
-              'crosshead':'float', 
-              'load':'float',
-              'trigger': 'int64',
-              'cam_44': 'int64',
-              'cam_43': 'int64',
+mts_columns = ['time', 'crosshead', 'load', 'trigger', 
+               'cam_44', 'cam_43', 'trig_arduino']
+mts_col_dtypes = {'time':'float', 'crosshead':'float', 'load':'float',
+              'trigger': 'int64', 'cam_44': 'int64', 'cam_43': 'int64',
               'trig_arduino': 'int64'}
-
 load_multiple_frames = False # load single frames flag
 orientation = 'vertical'
-frame_max = 34 # max frame to consider
+frame_max = 4 # max frame to consider
 frame_min = 1 # min frame to plot
 frame_rel_min = 5 # start frame for computing relative change between frames
 frame_range = frame_max - frame_min
@@ -89,17 +85,20 @@ results_files = [f for f in os.listdir(dir_gom_results) if f.endswith('.pkl')]
 num_frames = len(results_files)
 
 # plots to generate
-plots_to_generate = ['compressibility_check',
-                     'plot_var_vs_time_clusters',
-                     'plot_norm_stress_strain_rates_vs_time'
+plots_to_generate = ['boxplot',
+                     'other'
                      ]
 
 other_plots = ['boxplot',
-                     'plot_var_vs_time_clusters',
-                     'global_stress_strain',
-                     'scatter_var_categories',
-                     'overlay_pts_on_sample_var',
-                     'overlay_pts_on_sample_relative']
+               'plot_var_vs_time_clusters',
+               'global_stress_strain',
+               'scatter_var_categories',
+               'overlay_pts_on_sample_var',
+               'overlay_pts_on_sample_relative',
+               'compressibility_check',
+               'plot_var_vs_time_clusters',
+               'plot_norm_stress_strain_rates_vs_time'
+               ]
 #%% ----- LOAD DATA -----
 # ----------------------------------------------------------------------------
 # ----- load in frame-time mapping file -----
@@ -205,33 +204,47 @@ if 'histogram' in plots_to_generate:
 # ----------------------------------------------------------------------------
 # ----- generate for single variable -----
 # ----------------------------------------------------------------------------
-# compile plot params in dictionary
-if 'boxplot' in plots_to_generate:
-    print('Plotting: boxplot')
-    # ------------------------------------------------------------------------
-    # ----- initialize plot vars -----
-    # ------------------------------------------------------------------------    
-    mpl.rcParams['lines.marker']=''
-    
-    plot_var = 'Eyy'
-    plot_params = {'figsize': (4,2), 
-                   'xlims': [0, frame_max+1],
-                   'xlabel': 'Frame number',
-                   'ylabel': plot_var,
-                   'linewidth': 0.5,
-                   'grid_alpha': 0.5,
-                   'fontsize': 8,
-                   'showfliers': False
-                   }
-                   
-    if load_multiple_frames:
-        generate_boxplot_vs_frame(plot_var, plot_params, plot_frame_range,
-                              load_multiple_frames, dir_gom_results, img_scale, 
-                              time_mapping, orientation, data_df)
+for i in range(plot_frame_range[0],plot_frame_range[1]+1):
+    print('Plotting frame: '+ str(i)+ ' ...')
+    # ---------- load data for current frame ----------
+    if load_multiple_frames: 
+        frame_df = data_df[data_df['frame'] == i]
     else:
-        generate_boxplot_vs_frame(plot_var, plot_params, plot_frame_range,
-                              load_multiple_frames, dir_gom_results, img_scale, 
-                              time_mapping, orientation)
+        frame_df = return_frame_dataframe(i, dir_gom_results)
+        frame_df = add_features(frame_df, img_scale, time_mapping, 
+                                orientation)
+
+    # compile plot params in dictionary
+    if 'boxplot' in plots_to_generate:
+        print('Plotting: boxplot')
+        # --------------------------------------------------------------------
+        # ----- initialize plot vars -----
+        # -------------------------------------------------------------------- 
+        mpl.rcParams['lines.marker'] = ''
+        
+        plot_var = 'Eyy'
+        plot_params = {'figsize': (4,2), 
+                       'xlims': [0, frame_max+1],
+                       'xlabel': 'Frame number',
+                       'ylabel': plot_var,
+                       'linewidth': 0.5,
+                       'grid_alpha': 0.5,
+                       'fontsize': 8,
+                       'showfliers': False
+                       }
+        
+        # --------------------------------------------------------------------
+        # ----- create figure -----
+        # --------------------------------------------------------------------
+        if i == plot_frame_range[0]:
+            fig2 = plt.figure(figsize = plot_params['figsize'])
+            ax2 = fig2.add_subplot(1,1,1)
+
+        generate_boxplot_vs_frame(frame_df, plot_var, plot_params, 
+                                  plot_frame_range, i, fig2, ax2)
+        
+plt.tight_layout()       
+plt.show()
         
 #%% ----- Plot global stress-strain curve -----
 # ----------------------------------------------------------------------------
@@ -309,6 +322,12 @@ if 'scatter_var_categories' in plots_to_generate:
     
     category_ranges = np.linspace(min_category_band, max_category_band, 
                                   num_categories)
+    if i == frame_Range[0]:
+        field_avg_var = []
+        field_avg_x = []
+    
+    field_avg_var.append(frame_df[analysis_params['y_var']].mean())
+    field_avg_x.append(frame_df[analysis_params['x_var']].mean())
     
     # find indices of points on sample belonging to each category
     category_indices = find_points_in_categories(num_categories, category_ranges, 

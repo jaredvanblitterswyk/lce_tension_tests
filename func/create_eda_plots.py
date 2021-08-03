@@ -74,56 +74,36 @@ def create_simple_scatter(plot_vars, plot_params, plot_frame_range,
         
     plt.show()
     
-def generate_boxplot_vs_frame(plot_var, plot_params, plot_frame_range,
-                              load_multiple_frames, dir_results, img_scale, 
-                              time_mapping, orientation, data_df = None):
+def generate_boxplot_vs_frame(frame_df, plot_var, plot_params, 
+                              plot_frame_range, i, f, ax):
     '''Generate boxplots for one variable as a function of frame number
     
     Args: 
+        frame_df (dataframe): results from current frame
         plot_var (str): variable to plot
         plot_params (dict): dictionary of parameters to customize plot
         plot_frame_range (array): min and max frame numbers to plot
-        load_multiple_frames (bool): flag to process in batch or frame-by-frame
-        dir_results (str): dic results dictionary
-        img_scale (float): mm/pixel scale for images
-        time_mapping (dict): map frame number to test time
-        orientation (str): orientation of sample in field of view
-        data_df (dataframe, optional): pre-loaded results from all frames in
-            one data structure
+        i (int): current frame in iteration
+        f (object): handle of current figure
+        ax (object): handle of current axes
             
     Returns:
         Figure
 
     '''
     # genenerate frame labels
-    frame_labels = [f for f in range(plot_frame_range[0],plot_frame_range[1])]
+    frame_labels = [f for f in range(plot_frame_range[0],plot_frame_range[1]+1)]
     
-    # ------------------------------------------------------------------------
-    # ----- create figure -----
-    # ------------------------------------------------------------------------
-    f = plt.figure(figsize = plot_params['figsize'])
-    ax = f.add_subplot(1,1,1) 
-    
-    # ---------- load data for current frame ----------
-    for i in range(plot_frame_range[0], plot_frame_range[1]):
-        if load_multiple_frames: 
-            frame_df = data_df[data_df['frame'] == i]
-        else:
-            frame_df = return_frame_dataframe(i, dir_results)
-            frame_df = add_features(frame_df, img_scale, time_mapping, orientation)    
-            
-        # ---------- add data ----------        
-        ax.boxplot(frame_df[plot_var].values, positions = [i], 
-                   showfliers = plot_params['showfliers'])
-        ax.set_xticklabels(frame_labels)
-        ax.set_xlabel(plot_params['xlabel'], fontsize = plot_params['fontsize'])
-        ax.set_ylabel(plot_params['ylabel'], fontsize = plot_params['fontsize'])
-        ax.set_xlim(plot_params['xlims'])
-        ax.tick_params(labelsize = plot_params['fontsize'])
-        ax.grid(True, alpha = plot_params['grid_alpha'], zorder = 0)
-        plt.tight_layout()
-        
-    plt.show()
+    # ---------- add data ----------        
+    ax.boxplot(frame_df[plot_var].values, positions = [i], 
+               showfliers = plot_params['showfliers'])
+    ax.set_xticklabels(frame_labels)
+    ax.set_xlabel(plot_params['xlabel'], fontsize = plot_params['fontsize'])
+    ax.set_ylabel(plot_params['ylabel'], fontsize = plot_params['fontsize'])
+    ax.set_xlim(plot_params['xlims'])
+    ax.tick_params(labelsize = plot_params['fontsize'])
+    ax.grid(True, alpha = plot_params['grid_alpha'], zorder = 0)
+
     
 def generate_histogram(subplot_dims, plot_var, plot_params, plot_frame_range,
                        load_multiple_frames, dir_results, img_scale, 
