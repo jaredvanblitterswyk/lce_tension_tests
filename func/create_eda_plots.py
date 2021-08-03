@@ -231,42 +231,26 @@ def plot_var_classes_over_time(frame_df, subplot_dims, analysis_params,
                               fontsize = plot_params['fontsize']) 
     
     
-def overlay_pts_on_sample(plot_params, mask_frame, num_categories, 
-                          category_indices, category_ranges, 
-                          load_multiple_frames, dir_results, 
-                          img_scale, c, data_df = None):
+def overlay_pts_on_sample(plot_params, reference_df, mask_frame_df, 
+                          num_categories, category_indices, category_ranges,  
+                          img_scale, c, ax):
     '''Overlay location of cluster points on undeformed sample
     
     Args: 
         plot_params (dict): dictionary of parameters to customize plot
-        mask_frame (int): frame used to mask sample for clustering
+        reference_df (dataframe): dataframe of first frame in series
+        mask_frame_df (dataframe): dataframe for mask frame for clustering
         num_categories (int): number of categories used to cluster points
         category_indices (dict): contains index series of points corresponding
             to each category
         category_ranges (array): bounds on ranges used to cluster sample
-        load_multiple_frames (bool): flag to process in batch or frame-by-frame
-        dir_results (str): dic results dictionary
         img_scale (float): mm/pixel scale for images
         c (array): list of possible marker colours
-        data_df (dataframe, optional): pre-loaded results from all frames in
-            one data structure
             
     Returns:
         Figure
 
     '''
-    # ------------------------------------------------------------------------
-    # ----- create figure -----
-    # ------------------------------------------------------------------------
-    f = plt.figure(figsize = plot_params['figsize'])
-    ax = f.add_subplot(1,1,1)
-    # ---------- load data for reference and mask frames ----------
-    if load_multiple_frames: 
-            frame_df = data_df[data_df['frame'] == mask_frame]
-            reference_df = data_df[data_df['frame'] == 1]
-    else:
-        frame_df = return_frame_dataframe(mask_frame, dir_results)
-        reference_df = return_frame_dataframe(1, dir_results)
         
     # plot reference points
     ax.scatter(reference_df[['x_pix']]*img_scale, 
@@ -277,9 +261,9 @@ def overlay_pts_on_sample(plot_params, mask_frame, num_categories,
             linewidths = plot_params['linewidth'], 
             zorder = 0, label = 'Other'
             )
-    # ---------- add data ----------
+    # ---------- add cluster points ----------
     for i in range(0,num_categories):
-        category_df = frame_df[frame_df.index.isin(category_indices[i].values)]
+        category_df = mask_frame_df[mask_frame_df.index.isin(category_indices[i].values)]
     
         ax.scatter(
             category_df[['x_pix']]*img_scale, category_df[['y_pix']]*img_scale, 
@@ -313,11 +297,6 @@ def overlay_pts_on_sample(plot_params, mask_frame, num_categories,
     
     for handle in legend.legendHandles:
         handle.set_sizes([plot_params['m_legend_size']])
-    
-    if plot_params['tight_layout']:
-        plt.tight_layout()
-        
-    plt.show()
     
 def plot_compressibility_check_clusters(analysis_params, plot_params, 
                                        num_categories, category_indices, 

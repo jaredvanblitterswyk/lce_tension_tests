@@ -85,14 +85,13 @@ results_files = [f for f in os.listdir(dir_gom_results) if f.endswith('.pkl')]
 num_frames = len(results_files)
 
 # plots to generate
-plots_to_generate = ['histogram',
-                     'boxplot',
-                     'global_stress_strain',
-                     'scatter_var_categories',
+plots_to_generate = ['scatter_var_categories',
+                     'overlay_pts_on_sample_var',
                      'other'
                      ]
 
 other_plots = ['boxplot',
+               'histogram',
                'plot_var_vs_time_clusters',
                'global_stress_strain',
                'scatter_var_categories',
@@ -193,7 +192,51 @@ if 'scatter_var_categories' in plots_to_generate:
 
     # find indices of points on sample belonging to each category
     category_indices = find_points_in_categories(num_categories, category_ranges, 
-                                                 category_var, mask_frame_df)    
+                                                 category_var, mask_frame_df)
+
+if 'overlay_pts_on_sample_var' in plots_to_generate:
+    # ----- initialize plot vars -----
+    num_categories = 6
+    category_var = 'Eyy'
+    # compute aspect ratio of sample to set figure size
+    width = first_frame_df['x_mm'].max() - first_frame_df['x_mm'].min()
+    height = first_frame_df['y_mm'].max() - first_frame_df['y_mm'].min()
+    axis_buffer = 1
+    fig_width = 2.5
+    fig_height = height*axis_buffer/width*fig_width  
+    
+    plot_params_5 = {'figsize': (fig_width,fig_height),
+           'xlabel': 'x (mm)',
+           'ylabel': 'y (mm)',
+           'ref_c': '#D0D3D4',
+           'ref_ec': '#D0D3D4',
+           'ref_alpha': 0.3,
+           'cluster_alpha': 1.0,
+           'tight_layout': False,
+           'axes_scaled': True,
+           'grid_alpha': 0.5,
+           'm_size': 2,
+           'm_legend_size': 7,
+           'm_alpha': 0.4,
+           'fontsize': 5,
+           'linewidth': 0,
+           'linestyle': '-',
+           'xlims': [0.95*round(first_frame_df['x_mm'].min(),1),
+                     1.05*round(first_frame_df['x_mm'].max(),1)],
+           'ylims': [0.95*round(first_frame_df['y_mm'].min(),1),
+                     1.05*round(first_frame_df['y_mm'].max(),1)],
+           }
+    
+    # calculate variable magnitude range bounds
+    max_category_band = round(mask_frame_df[category_var].quantile(0.85),2)
+    min_category_band = round(mask_frame_df[category_var].min(),2)
+    
+    category_ranges = np.linspace(min_category_band, max_category_band, 
+                                  num_categories)
+    
+    # find indices of points on sample belonging to each category
+    category_indices = find_points_in_categories(num_categories, category_ranges, 
+                                  category_var, mask_frame_df)
 
 for i in range(plot_frame_range[0],plot_frame_range[1]+1):
     print('Processing frame: '+ str(i)+ ' ...')
@@ -350,9 +393,7 @@ plt.show()
 # ----------------------------------------------------------------------------
 if 'global_stress_strain' in plots_to_generate:
     print('Plotting: global_stress_strain')
-    # ------------------------------------------------------------------------
     # ----- initialize plot vars -----
-    # ------------------------------------------------------------------------
     plot_params = {'figsize': (4,2),
                'm_size': 2,
                'linewidth': 0.5,
@@ -369,78 +410,20 @@ if 'global_stress_strain' in plots_to_generate:
     
     create_simple_scatter(x_glob_ss, y_glob_ss, plot_params, plot_frame_range, 
                           ec, c, ax3)
-        
-#%% --- Plot classes of data vs frame based on value in a specified frame ---
-if 'scatter_var_categories' in plots_to_generate:
-    print('Plotting: scatter_var_categories')
-    # ------------------------------------------------------------------------
-    # ----- initialize plot vars -----
-    # ------------------------------------------------------------------------
-    # define categorical variables
-    num_categories = 6
-    y_var = 'Eyy'
-    x_var = 'time'
-    category_var = 'Eyy'
+
+# ------------------------------------------------------------------------
+# --- Plot cluster points overlaid on sample ---
+# ------------------------------------------------------------------------
+if 'overlay_pts_on_sample_var' in plots_to_generate:
+    print('Plotting: overlay_pts_on_sample_var')
     
-    # define analysis parameters dictionary
-    analysis_params = {'x_var': x_var,
-                       'y_var': y_var,
-                       'cat_var': category_var,
-                       'samples': 8000,
-                       'mask_frame': mask_frame}
+    # ----- create figure -----
+    fig5 = plt.figure(figsize = plot_params_5['figsize'])
+    ax5 = fig5.add_subplot(1,1,1)
     
-    # define plot parameters dictionary
-    plot_params = {'figsize': (5,4),
-               'xlabel': 'Time (s)',
-               'ylabel': 'Eng. Stress (MPa)',
-               'tight_layout': True,
-               'grid_alpha': 0.5,
-               'm_size': 2,
-               'm_alpha': 0.4,
-               'fontsize': 5,
-               'linewidth': 0.5,
-               'annot_linestyle': '--',
-               'linestyle': '-',
-               'xlims': [1.05*round(first_frame_df[x_var].min(),1),
-                         1.1*round(last_frame_df[x_var].max(),1)],
-               'ylims': [1.05*round(first_frame_df[y_var].min(),1),
-                         1.05*round(last_frame_df[y_var].max(),1)],
-               'log_x': True
-               }
-    
-    subplot_cols = 3
-    subplot_dims = [int(round((num_categories)/subplot_cols,0)), subplot_cols]
-    
-    # calculate strain range bounds
-    max_category_band = round(mask_frame_df[category_var].quantile(0.98),2)
-    min_category_band = round(mask_frame_df[category_var].min(),2)
-    
-    category_ranges = np.linspace(min_category_band, max_category_band, 
-                                  num_categories)
-    if i == frame_Range[0]:
-        field_avg_var = []
-        field_avg_x = []
-    
-    field_avg_var.append(frame_df[analysis_params['y_var']].mean())
-    field_avg_x.append(frame_df[analysis_params['x_var']].mean())
-    
-    # find indices of points on sample belonging to each category
-    category_indices = find_points_in_categories(num_categories, category_ranges, 
-                                  category_var, mask_frame_df)
-    
-    if load_multiple_frames:
-        plot_var_classes_over_time(subplot_dims, analysis_params, plot_params, 
-                                   num_categories, category_indices, 
-                                   category_ranges, plot_frame_range, 
-                                   load_multiple_frames, dir_gom_results, 
-                                   img_scale, time_mapping, orientation, ec,
-                                   c, data_df)
-    else:
-        plot_var_classes_over_time(subplot_dims, analysis_params, plot_params, 
-                                   num_categories, category_indices, 
-                                   category_ranges, plot_frame_range, 
-                                   load_multiple_frames, dir_gom_results, 
-                                   img_scale, time_mapping, orientation, ec, c)
+    overlay_pts_on_sample(plot_params_5, first_frame_df, mask_frame_df, 
+                          num_categories, category_indices, category_ranges,  
+                          img_scale, c, ax5)        
         
 #%% ----- overlay physical locations of clusters on sample - variable mag -----
 if 'overlay_pts_on_sample_var' in plots_to_generate:
