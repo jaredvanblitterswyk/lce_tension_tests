@@ -88,6 +88,7 @@ num_frames = len(results_files)
 plots_to_generate = ['histogram',
                      'boxplot',
                      'global_stress_strain',
+                     'scatter_var_categories',
                      'other'
                      ]
 
@@ -173,7 +174,26 @@ else:
 # ----------------------------------------------------------------------------
 if 'global_stress_strain' in plots_to_generate and load_multiple_frames:
     x_glob_ss = data_df.groupby('frame')[plot_vars['x']].mean()
-    y_glob_ss = data_df.groupby('frame')[plot_vars['y']].mean()       
+    y_glob_ss = data_df.groupby('frame')[plot_vars['y']].mean() 
+
+if 'scatter_var_categories' in plots_to_generate:
+    # ----- initialize plot variables -----
+    y_var = 'Eyy'
+    x_var = 'time'
+    category_var = 'Eyy'
+    num_samples = 8000
+    num_categories = 6
+    
+    # calculate strain range bounds
+    max_category_band = round(mask_frame_df[category_var].quantile(0.98),2)
+    min_category_band = round(mask_frame_df[category_var].min(),2)
+    
+    category_ranges = np.linspace(min_category_band, max_category_band, 
+                                  num_categories) 
+
+    # find indices of points on sample belonging to each category
+    category_indices = find_points_in_categories(num_categories, category_ranges, 
+                                                 category_var, mask_frame_df)    
 
 for i in range(plot_frame_range[0],plot_frame_range[1]+1):
     print('Processing frame: '+ str(i)+ ' ...')
@@ -185,7 +205,7 @@ for i in range(plot_frame_range[0],plot_frame_range[1]+1):
         frame_df = add_features(frame_df, img_scale, time_mapping, 
                                 orientation)
     # ------------------------------------------------------------------------
-    # ----- plot histogram and box plot of strain for each frame -----
+    # ----- plot histogram for each frame -----
     # ------------------------------------------------------------------------
     if 'histogram' in plots_to_generate:
         print('Plotting: histogram')
@@ -252,7 +272,9 @@ for i in range(plot_frame_range[0],plot_frame_range[1]+1):
         generate_boxplot_vs_frame(frame_df, plot_var, plot_params, 
                                   plot_frame_range, i, ax2)
         
-        
+    # ------------------------------------------------------------------------
+    # ----- store data for plotting global variables -----
+    # ------------------------------------------------------------------------    
     if 'global_stress_strain' in plots_to_generate and not load_multiple_frames:
         if i == plot_frame_range[0]:       
             x_glob_ss = []
@@ -260,6 +282,65 @@ for i in range(plot_frame_range[0],plot_frame_range[1]+1):
             
         x_glob_ss.append(frame_df[plot_vars['x']].mean())
         y_glob_ss.append(frame_df[plot_vars['y']].mean())
+    
+    # ------------------------------------------------------------------------
+    # --- Plot classes of data vs frame based on value in a specified frame ---
+    # ------------------------------------------------------------------------
+    if 'scatter_var_categories' in plots_to_generate:
+        print('Plotting: scatter_var_categories')
+        # ----- initialize plot vars -----
+
+        
+        # define analysis parameters dictionary
+        analysis_params = {'x_var': x_var,
+                           'y_var': y_var,
+                           'cat_var': category_var,
+                           'samples': num_samples,
+                           'mask_frame': mask_frame}
+        
+        # define plot parameters dictionary
+        plot_params = {'figsize': (5,4),
+                   'xlabel': 'Time (s)',
+                   'ylabel': 'Eng. Stress (MPa)',
+                   'tight_layout': True,
+                   'grid_alpha': 0.5,
+                   'm_size': 2,
+                   'm_alpha': 0.4,
+                   'fontsize': 5,
+                   'linewidth': 0.5,
+                   'annot_linestyle': '--',
+                   'linestyle': '-',
+                   'xlims': [1.05*round(first_frame_df[x_var].min(),1),
+                             1.1*round(last_frame_df[x_var].max(),1)],
+                   'ylims': [1.05*round(first_frame_df[y_var].min(),1),
+                             1.05*round(last_frame_df[y_var].max(),1)],
+                   'log_x': True
+                   }
+        
+        # compute sub-plot dimensions
+        subplot_cols = 3
+        subplot_dims = [int(np.floor((num_categories-1)/subplot_cols)+1), 
+                        subplot_cols
+                        ]
+        
+        # create figure and initialize arrays for field average data
+        if i == plot_frame_range[0]:
+            field_avg_var = []
+            field_avg_x = []
+            
+            # ----- create figure -----
+            fig4, ax4 = plt.subplots(subplot_dims[0], subplot_dims[1], 
+                            figsize=plot_params['figsize'], sharey=True)
+        
+        # collect field average quantities for comparison
+        field_avg_var.append(frame_df[analysis_params['y_var']].mean())
+        field_avg_x.append(frame_df[analysis_params['x_var']].mean())
+                
+        plot_var_classes_over_time(frame_df, subplot_dims, analysis_params, 
+                               plot_params, num_categories, category_indices, 
+                               category_ranges, plot_frame_range,
+                               time_mapping, field_avg_var, field_avg_x, i, 
+                               ax4, ec, c)
         
 plt.tight_layout()       
 plt.show()
