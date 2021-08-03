@@ -75,7 +75,7 @@ def create_simple_scatter(plot_vars, plot_params, plot_frame_range,
     plt.show()
     
 def generate_boxplot_vs_frame(frame_df, plot_var, plot_params, 
-                              plot_frame_range, i, f, ax):
+                              plot_frame_range, i, ax):
     '''Generate boxplots for one variable as a function of frame number
     
     Args: 
@@ -83,8 +83,7 @@ def generate_boxplot_vs_frame(frame_df, plot_var, plot_params,
         plot_var (str): variable to plot
         plot_params (dict): dictionary of parameters to customize plot
         plot_frame_range (array): min and max frame numbers to plot
-        i (int): current frame in iteration
-        f (object): handle of current figure
+        i (int): current frame
         ax (object): handle of current axes
             
     Returns:
@@ -105,82 +104,53 @@ def generate_boxplot_vs_frame(frame_df, plot_var, plot_params,
     ax.grid(True, alpha = plot_params['grid_alpha'], zorder = 0)
 
     
-def generate_histogram(subplot_dims, plot_var, plot_params, plot_frame_range,
-                       load_multiple_frames, dir_results, img_scale, 
-                       time_mapping, orientation, ec, c, data_df = None):
+def generate_histogram(frame_df, subplot_dims, plot_var, plot_params, 
+                       plot_frame_range, plot_num, i, ax, ec, c):
     '''Generate histogram for mulitple frames in separate subplots
     
-    Args: 
+    Args:
+        frame_df (dataframe): results from current frame
         subplot_dims (array): number of subplots in rows and columns
         plot_var (str): variable to plot
         plot_params (dict): dictionary of parameters to customize plot
         plot_frame_range (array): min and max frame numbers to plot
-        load_multiple_frames (bool): flag to process in batch or frame-by-frame
-        dir_results (str): dic results dictionary
-        img_scale (float): mm/pixel scale for images
-        time_mapping (dict): map frame number to test time
-        orientation (str): orientation of sample in field of view
+        plot_num (int): index of current plot
+        i (int): current frame
         ec (array): list of possible marker edge colours
         c (array): list of possible face colours
-        data_df (dataframe, optional): pre-loaded results from all frames in
-            one data structure
             
     Returns:
         Figure
 
     '''
     
-    # initialize row and column index counters
-    row, col = 0, 0
-    # ------------------------------------------------------------------------
-    # ----- create figure -----
-    # ------------------------------------------------------------------------
-    fig, axs = plt.subplots(subplot_dims[0], subplot_dims[1], sharey=True, 
-                            tight_layout=True)
-        
-    # loop through range of frames and generate histogram and box plots
-    plot_num = 0
+    # --------- compute axis indices ----------
+    row = int(plot_num/(subplot_dims[1]))
+    col = plot_num - row*(subplot_dims[1])
     
-    for i in range(plot_frame_range[0],plot_frame_range[1]+1):
-        # --------- compute axis indices ----------
-        row = int(plot_num/(subplot_dims[1]))
-        col = plot_num - row*(subplot_dims[1])
-        
-        # ---------- load data for current frame ----------
-        if load_multiple_frames: 
-            frame_df = data_df[data_df['frame'] == i]
-        else:
-            frame_df = return_frame_dataframe(i, dir_results)
-            frame_df = add_features(frame_df, img_scale, time_mapping, orientation)
-            
-        # ---------- generate subplot ----------
-        axs[row,col].hist(frame_df[plot_var], edgecolor=ec[0], color = c[0], 
-            bins = plot_params['n_bins'], linewidth = plot_params['linewidth'])
-        axs[row,col].set_title('Frame: '+ str(i), fontsize = plot_params['fontsize'])
-        axs[row,col].set_xlabel(plot_var, fontsize = plot_params['fontsize'])
-        axs[row,col].grid(True, alpha = plot_params['grid_alpha'], zorder = 0)
-        axs[row,col].set_xlim(plot_params['xlims'])
-        axs[row,col].tick_params(labelsize = plot_params['fontsize'])
-        
-        # extract ylims of plot for annotations
-        _, max_ylim = plt.ylim()
-        
-        # add line showning mean of field at each frame
-        avg_strain = frame_df[plot_var].mean()
-        axs[row,col].axvline(avg_strain,
-            color='k', linestyle=plot_params['annot_linestyle'], 
-            linewidth = plot_params['annot_linewidth'], marker = ''
-            )
-        axs[row,col].text(
-            avg_strain*1.1, max_ylim*0.8, 
-            'Mean: {:.2f}'.format(avg_strain), fontsize = plot_params['annot_fontsize']
-            ) 
-
-        # if loading each file individually, delete after use
-        del frame_df
-        plot_num += 1
-        
-    plt.show()
+    # ---------- generate subplot ----------
+    ax[row,col].hist(frame_df[plot_var], edgecolor=ec[0], color = c[0], 
+        bins = plot_params['n_bins'], linewidth = plot_params['linewidth'])
+    ax[row,col].set_title('Frame: '+ str(i), fontsize = plot_params['fontsize'])
+    ax[row,col].set_xlabel(plot_var, fontsize = plot_params['fontsize'])
+    ax[row,col].grid(True, alpha = plot_params['grid_alpha'], zorder = 0)
+    ax[row,col].set_xlim(plot_params['xlims'])
+    ax[row,col].tick_params(labelsize = plot_params['fontsize'])
+    
+    # extract ylims of plot for annotations
+    _, max_ylim = plt.ylim()
+    
+    # add line showning mean of field at each frame
+    avg_strain = frame_df[plot_var].mean()
+    ax[row,col].axvline(avg_strain,
+        color='k', linestyle=plot_params['annot_linestyle'], 
+        linewidth = plot_params['annot_linewidth'], marker = ''
+        )
+    ax[row,col].text(
+        avg_strain*1.1, max_ylim*0.8, 
+        'Mean: {:.2f}'.format(avg_strain), 
+        fontsize = plot_params['annot_fontsize']
+        ) 
     
 def plot_var_classes_over_time(subplot_dims, analysis_params, plot_params, 
                                num_categories, category_indices, 

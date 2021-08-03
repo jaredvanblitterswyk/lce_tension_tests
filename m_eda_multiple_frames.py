@@ -85,7 +85,8 @@ results_files = [f for f in os.listdir(dir_gom_results) if f.endswith('.pkl')]
 num_frames = len(results_files)
 
 # plots to generate
-plots_to_generate = ['boxplot',
+plots_to_generate = ['histogram',
+                     'boxplot',
                      'other'
                      ]
 
@@ -200,10 +201,9 @@ if 'histogram' in plots_to_generate:
                            load_multiple_frames, dir_gom_results, img_scale, 
                            time_mapping, orientation, ec, c)
         
-#%% ----- Generate Box Plots -----
+#%% ----- Exploratory Data Analysis -----
 # ----------------------------------------------------------------------------
-# ----- generate for single variable -----
-# ----------------------------------------------------------------------------
+
 for i in range(plot_frame_range[0],plot_frame_range[1]+1):
     print('Plotting frame: '+ str(i)+ ' ...')
     # ---------- load data for current frame ----------
@@ -213,15 +213,52 @@ for i in range(plot_frame_range[0],plot_frame_range[1]+1):
         frame_df = return_frame_dataframe(i, dir_gom_results)
         frame_df = add_features(frame_df, img_scale, time_mapping, 
                                 orientation)
+    # ------------------------------------------------------------------------
+    # ----- plot histogram and box plot of strain for each frame -----
+    # ------------------------------------------------------------------------
+    if 'histogram' in plots_to_generate:
+        print('Plotting: histogram')
+        # ----- initialize plot vars -----
+        subplot_cols = 3
+        subplot_dims = [2,subplot_cols]#[int(round((frame_range)/subplot_cols,0)), subplot_cols]
+        plot_var = 'Eyy'
+        
+        # compile plot params in dictionary
+        plot_params = {'n_bins': 20, 
+                       'xlims': [1.05*last_frame_df[plot_var].min(),
+                                 1.05*last_frame_df[plot_var].max()],
+                       'ylabel': plot_var,
+                       'grid_alpha': 0.5,
+                       'fontsize': 5,
+                       'annot_linestyle': '--',
+                       'linewidth': 0.4,
+                       'annot_linewidth': 0.4,
+                       'annot_fontsize': 4
+                       }
+        
+        if i == plot_frame_range[0]:
+            # initialize row and column index counters
+            plot_num = 0
+            # ----- create figure -----
+            fig1, axs1 = plt.subplots(subplot_dims[0], subplot_dims[1], 
+                                    sharey=True, tight_layout=True)
+        
+        generate_histogram(frame_df, subplot_dims, plot_var, plot_params, 
+                       plot_frame_range, plot_num, i, axs1, ec, c)
 
+        plot_num += 1
+    
+    # ------------------------------------------------------------------------
+    # ----- Generate Box Plots -----
+    # ------------------------------------------------------------------------
     # compile plot params in dictionary
     if 'boxplot' in plots_to_generate:
         print('Plotting: boxplot')
-        # --------------------------------------------------------------------
+        
         # ----- initialize plot vars -----
-        # -------------------------------------------------------------------- 
         mpl.rcParams['lines.marker'] = ''
         
+        # compile plot params in dictionary
         plot_var = 'Eyy'
         plot_params = {'figsize': (4,2), 
                        'xlims': [0, frame_max+1],
@@ -232,16 +269,14 @@ for i in range(plot_frame_range[0],plot_frame_range[1]+1):
                        'fontsize': 8,
                        'showfliers': False
                        }
-        
-        # --------------------------------------------------------------------
+
         # ----- create figure -----
-        # --------------------------------------------------------------------
         if i == plot_frame_range[0]:
             fig2 = plt.figure(figsize = plot_params['figsize'])
             ax2 = fig2.add_subplot(1,1,1)
 
         generate_boxplot_vs_frame(frame_df, plot_var, plot_params, 
-                                  plot_frame_range, i, fig2, ax2)
+                                  plot_frame_range, i, ax2)
         
 plt.tight_layout()       
 plt.show()
