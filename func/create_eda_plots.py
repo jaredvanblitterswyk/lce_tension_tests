@@ -11,53 +11,20 @@ import matplotlib as mpl
 import matplotlib.pyplot as plt
 from func.df_extract_transform import return_frame_dataframe, add_features
 
-def create_simple_scatter(plot_vars, plot_params, plot_frame_range,
-                          load_multiple_frames, dir_results, img_scale, 
-                          time_mapping, orientation, ec, c, data_df = None):
+def create_simple_scatter(x, y, plot_params, plot_frame_range, ec, c, ax):
     '''Generate boxplots for one variable as a function of frame number
     
     Args: 
-        plot_vars (dict): dictionary of x and y plot variables
+        x (array/list): x values to plot
+        y (array/list): y values to plot
         plot_params (dict): dictionary of parameters to customize plot
         plot_frame_range (array): min and max frame numbers to plot
-        load_multiple_frames (bool): flag to process in batch or frame-by-frame
-        dir_results (str): dic results dictionary
-        img_scale (float): mm/pixel scale for images
-        time_mapping (dict): map frame number to test time
-        orientation (str): orientation of sample in field of view
         ec (array): list of possible marker edge colours
         c (array): list of possible face colours
-        data_df (dataframe, optional): pre-loaded results from all frames in
-            one data structure
             
     Returns:
         Figure
-        
-    Notes: 
-        Hard-coded to group by frame
-
     '''
-    # ------------------------------------------------------------------------
-    # ----- create figure -----
-    # ------------------------------------------------------------------------
-    f = plt.figure(figsize = plot_params['figsize'])
-    ax = f.add_subplot(1,1,1)
-    
-    # ----- load data -----
-    # ----- if preloaded, use groupby method to get data -----
-    if load_multiple_frames:
-        x = data_df.groupby('frame')[plot_vars['x']].mean()
-        y = data_df.groupby('frame')[plot_vars['y']].mean()
-    else:
-        x = []
-        y = []
-        # ---------- load data for current frame ----------
-        for i in range(plot_frame_range[0], plot_frame_range[1]+1):
-            frame_df = return_frame_dataframe(i, dir_results)
-            frame_df = add_features(frame_df, img_scale, time_mapping, orientation)    
-            
-            x.append(frame_df[plot_vars['x']].mean())
-            y.append(frame_df[plot_vars['y']].mean())
             
     # ---------- add data ----------   
     ax.scatter(x = x, y = y, s = plot_params['m_size'], 
@@ -69,10 +36,7 @@ def create_simple_scatter(plot_vars, plot_params, plot_frame_range,
     ax.tick_params(labelsize = plot_params['fontsize'])
     if plot_params['log_x']:
         ax.set_xscale('log')
-    if plot_params['tight_layout']:
-        plt.tight_layout()
         
-    plt.show()
     
 def generate_boxplot_vs_frame(frame_df, plot_var, plot_params, 
                               plot_frame_range, i, ax):
@@ -138,7 +102,7 @@ def generate_histogram(frame_df, subplot_dims, plot_var, plot_params,
     ax[row,col].tick_params(labelsize = plot_params['fontsize'])
     
     # extract ylims of plot for annotations
-    _, max_ylim = plt.ylim()
+    _, max_ylim = ax[row,col].get_ylim()
     
     # add line showning mean of field at each frame
     avg_strain = frame_df[plot_var].mean()

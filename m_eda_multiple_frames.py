@@ -46,7 +46,7 @@ mts_col_dtypes = {'time':'float', 'crosshead':'float', 'load':'float',
               'trig_arduino': 'int64'}
 load_multiple_frames = False # load single frames flag
 orientation = 'vertical'
-frame_max = 4 # max frame to consider
+frame_max = 5 # max frame to consider
 frame_min = 1 # min frame to plot
 frame_rel_min = 5 # start frame for computing relative change between frames
 frame_range = frame_max - frame_min
@@ -87,6 +87,7 @@ num_frames = len(results_files)
 # plots to generate
 plots_to_generate = ['histogram',
                      'boxplot',
+                     'global_stress_strain',
                      'other'
                      ]
 
@@ -167,45 +168,15 @@ else:
     first_frame_rel_df = add_features(first_frame_rel_df, img_scale, time_mapping, orientation)
     last_frame_df = add_features(last_frame_df, img_scale, time_mapping, orientation)
     frame_end_df = add_features(frame_end_df, img_scale, time_mapping, orientation)
-
+       
 #%% ----- EXPLORATORY DATA ANALYSIS -----
-# ----- plot histogram and box plot of strain for each frame -----
-if 'histogram' in plots_to_generate:
-    print('Plotting: histogram')
-    # ------------------------------------------------------------------------
-    # ----- initialize plot vars -----
-    # ------------------------------------------------------------------------
-    subplot_cols = 6
-    subplot_dims = [int(round((frame_range)/subplot_cols,0)), subplot_cols]
-    plot_var = 'Eyy'
-    
-    # compile plot params in dictionary
-    plot_params = {'n_bins': 20, 
-                   'xlims': [1.05*last_frame_df[plot_var].min(),
-                             1.05*last_frame_df[plot_var].max()],
-                   'ylabel': plot_var,
-                   'grid_alpha': 0.5,
-                   'fontsize': 5,
-                   'annot_linestyle': '--',
-                   'linewidth': 0.4,
-                   'annot_linewidth': 0.4,
-                   'annot_fontsize': 4
-                   }
-    
-    if load_multiple_frames: 
-        generate_histogram(subplot_dims, plot_var, plot_params, plot_frame_range,
-                           load_multiple_frames, dir_gom_results, img_scale, 
-                           time_mapping, orientation, ec, c, data_df)
-    else:
-        generate_histogram(subplot_dims, plot_var, plot_params, plot_frame_range,
-                           load_multiple_frames, dir_gom_results, img_scale, 
-                           time_mapping, orientation, ec, c)
-        
-#%% ----- Exploratory Data Analysis -----
 # ----------------------------------------------------------------------------
+if 'global_stress_strain' in plots_to_generate and load_multiple_frames:
+    x_glob_ss = data_df.groupby('frame')[plot_vars['x']].mean()
+    y_glob_ss = data_df.groupby('frame')[plot_vars['y']].mean()       
 
 for i in range(plot_frame_range[0],plot_frame_range[1]+1):
-    print('Plotting frame: '+ str(i)+ ' ...')
+    print('Processing frame: '+ str(i)+ ' ...')
     # ---------- load data for current frame ----------
     if load_multiple_frames: 
         frame_df = data_df[data_df['frame'] == i]
@@ -220,7 +191,7 @@ for i in range(plot_frame_range[0],plot_frame_range[1]+1):
         print('Plotting: histogram')
         # ----- initialize plot vars -----
         subplot_cols = 3
-        subplot_dims = [2,subplot_cols]#[int(round((frame_range)/subplot_cols,0)), subplot_cols]
+        subplot_dims = [int(np.floor((frame_range-1)/subplot_cols)+1), subplot_cols]
         plot_var = 'Eyy'
         
         # compile plot params in dictionary
@@ -269,6 +240,9 @@ for i in range(plot_frame_range[0],plot_frame_range[1]+1):
                        'fontsize': 8,
                        'showfliers': False
                        }
+        
+        plot_vars = {'x': 'time',
+                     'y': 'stress_mpa'}
 
         # ----- create figure -----
         if i == plot_frame_range[0]:
@@ -278,10 +252,20 @@ for i in range(plot_frame_range[0],plot_frame_range[1]+1):
         generate_boxplot_vs_frame(frame_df, plot_var, plot_params, 
                                   plot_frame_range, i, ax2)
         
+        
+    if 'global_stress_strain' in plots_to_generate and not load_multiple_frames:
+        if i == plot_frame_range[0]:       
+            x_glob_ss = []
+            y_glob_ss = []
+            
+        x_glob_ss.append(frame_df[plot_vars['x']].mean())
+        y_glob_ss.append(frame_df[plot_vars['y']].mean())
+        
 plt.tight_layout()       
 plt.show()
-        
-#%% ----- Plot global stress-strain curve -----
+
+# ----------------------------------------------------------------------------
+# ----- plot figures that don't require iteratively loading -----
 # ----------------------------------------------------------------------------
 if 'global_stress_strain' in plots_to_generate:
     print('Plotting: global_stress_strain')
@@ -297,18 +281,13 @@ if 'global_stress_strain' in plots_to_generate:
                'grid_alpha': 0.5,
                'fontsize': 8,
                'log_x': True}
+       
+    # ----- create figure -----
+    fig3 = plt.figure(figsize = plot_params['figsize'])
+    ax3 = fig3.add_subplot(1,1,1)
     
-    plot_vars = {'x': 'time',
-                 'y': 'stress_mpa'}
-     
-    if load_multiple_frames:
-        create_simple_scatter(plot_vars, plot_params, plot_frame_range,
-                          load_multiple_frames, dir_gom_results, img_scale, 
-                          time_mapping, orientation, ec1, c1, data_df)
-    else:
-        create_simple_scatter(plot_vars, plot_params, plot_frame_range,
-                          load_multiple_frames, dir_gom_results, img_scale, 
-                          time_mapping, orientation, ec1, c1)
+    create_simple_scatter(x_glob_ss, y_glob_ss, plot_params, plot_frame_range, 
+                          ec, c, ax3)
         
 #%% --- Plot classes of data vs frame based on value in a specified frame ---
 if 'scatter_var_categories' in plots_to_generate:
