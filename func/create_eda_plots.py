@@ -444,29 +444,24 @@ def plot_var_vs_time_clusters(frame_df, analysis_params, plot_params,
                 ax.set_xscale('linear')  
     
 def plot_norm_stress_strain_rates_vs_time(analysis_params, plot_params, 
-                               num_categories, category_indices, 
-                               plot_frame_range, load_multiple_frames, 
-                               dir_results, img_scale, time_mapping, 
-                               orientation, ec, c, data_df = None):
-    '''Generate scatter plots of values from points on the sample belonging to
-    categories defined based on an input variable and mask frame
+                                          num_categories, category_series, 
+                                          x_series, dt, plot_frame_range, 
+                                           i, ax, ec, c):
+    '''Plot normalized rate of change for two variables (intended to be Eyy 
+    and stress), normalized by the value at peak load. The data is collected 
+    and stored in category_series dictionary in a loop for ploting later
     
     Args: 
         analysis_params (dict): variables used for plot on x,y and categories
         plot_params (dict): dictionary of parameters to customize plot
         num_categories (int): number of categories used to cluster points
-        category_indices (dict): contains index series of points corresponding
-            to each category
+        category_series (dict): contains data for two series of clustered data
+        x_series (dict): contains independent var to plot two series against
         plot_frame_range (array): min and max frame numbers to plot
-        load_multiple_frames (bool): flag to process in batch or frame-by-frame
-        dir_results (str): dic results dictionary
-        img_scale (float): mm/pixel scale for images
-        time_mapping (dict): map frame number to test time
-        orientation (str): orientation of sample in field of view
+        i (int): current frame
+        ax (object): handle of current axes
         ec (array): list of possible marker edge colours
         c (array): list of possible face colours
-        data_df (dataframe, optional): pre-loaded results from all frames in
-            one data structure
             
     Returns:
         Figure
@@ -476,54 +471,7 @@ def plot_norm_stress_strain_rates_vs_time(analysis_params, plot_params,
         clusters where category variable increases or decreases
 
     '''
-    # assign placeholder objects to store data from all frames
-    category_series = {}
-    category_series['y1_0'] = []
-    category_series['y1_1'] = []
-    category_series['y2_0'] = []
-    category_series['y2_1'] = []
-    x_series = []
-    
-    # extract times for each frame
-    time_ = []
-    for key in time_mapping.keys():
-        time_.append(time_mapping[key])
-    dt = np.diff(time_)[plot_frame_range[0]:plot_frame_range[1]+1]
-    # ------------------------------------------------------------------------
-    # ----- create figure -----
-    # ------------------------------------------------------------------------
-    f = plt.figure(figsize = plot_params['figsize'])
-    ax = f.add_subplot(1,1,1)
-         
-    for i in range(plot_frame_range[0]+1,plot_frame_range[1]+1):          
-        # ---------- load data for current frame ----------
-        if load_multiple_frames: 
-            frame_df = data_df[data_df['frame'] == i]
-            
-        else:
-            frame_df = return_frame_dataframe(i, dir_results)
-            frame_df = add_features(frame_df, img_scale, time_mapping, 
-                                    orientation)
-                
-        for j in range(0,num_categories):
-            category_df = frame_df[frame_df.index.isin(category_indices[j].values)]
-            if j == 0:
-                #extract mean of x variable only once per frame
-                x = category_df.groupby(
-                analysis_params['x_var'])[analysis_params['x_var']].mean()
-                x_series.append(x.values[0])
-            
-            # extract mean of all points in cluster
-            y = category_df.groupby(
-                analysis_params['x_var'])[analysis_params['y_var']].mean()
-            y2 = category_df.groupby(
-                analysis_params['x_var'])[analysis_params['y_var_2']].mean()
-            
-            # append to list
-            category_series['y1_'+str(j)].append(y.values[0]/dt[i-1])
-            category_series['y2_'+str(j)].append(y2.values[0]/dt[i-1])
-        
-    # ---------- add data ----------
+    # ----- add data and set subplot properties (last frame only) -----
     for j in range(0,num_categories):
         # extract y variable values at peak load (for normalization)
         Y1 = category_series['y1_'+str(j)][analysis_params['peak_frame_index']]/dt[analysis_params['peak_frame_index']-1]
@@ -552,25 +500,23 @@ def plot_norm_stress_strain_rates_vs_time(analysis_params, plot_params,
                 linewidth = plot_params['linewidth'],
                 label = plot_params['labels_y2'][j]
                 )
-    
-    legend = ax.legend(loc='upper right', 
-                       fontsize = plot_params['legend_fontsize'])
-    legend.get_frame().set_linewidth(plot_params['linewidth'])
-    
-    # set axes parameters
-    ax.set_ylim(plot_params['ylims'])
-    ax.set_xlim(plot_params['xlims'])
-    ax.set_ylabel(analysis_params['y_var'], fontsize = plot_params['fontsize'])
-    ax.set_xlabel(analysis_params['x_var'], fontsize = plot_params['fontsize'])
-    ax.tick_params(labelsize = plot_params['fontsize'])
-    ax.grid(True, alpha = plot_params['grid_alpha'], zorder = 0)
-    if plot_params['log_x']:
-            ax.set_xscale('log')
-    else:
-            ax.set_xscale('linear')
-    if plot_params['log_y']:
-            ax.set_yscale('log')
-    else:
-            ax.set_yscale('linear')
-    
-    plt.show()
+        
+        legend = ax.legend(loc='upper right', 
+                           fontsize = plot_params['legend_fontsize'])
+        legend.get_frame().set_linewidth(plot_params['linewidth'])
+        
+        # set axes parameters
+        ax.set_ylim(plot_params['ylims'])
+        ax.set_xlim(plot_params['xlims'])
+        ax.set_ylabel(analysis_params['y_var'], fontsize = plot_params['fontsize'])
+        ax.set_xlabel(analysis_params['x_var'], fontsize = plot_params['fontsize'])
+        ax.tick_params(labelsize = plot_params['fontsize'])
+        ax.grid(True, alpha = plot_params['grid_alpha'], zorder = 0)
+        if plot_params['log_x']:
+                ax.set_xscale('log')
+        else:
+                ax.set_xscale('linear')
+        if plot_params['log_y']:
+                ax.set_yscale('log')
+        else:
+                ax.set_yscale('linear')
