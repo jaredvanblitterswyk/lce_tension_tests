@@ -90,6 +90,7 @@ num_frames = len(results_files)
 # plots to generate
 plots_to_generate = ['overlay_pts_on_sample_relative',
                      'overlay_pts_on_sample_var',
+                     'compressibility_check',
                      'other'
                      ]
 
@@ -307,7 +308,7 @@ if 'overlay_pts_on_sample_relative' in plots_to_generate:
     overlay_pts_on_sample(plot_params_6, first_frame_df, mask_frame_df, 
                       num_categories, category_indices, category_ranges,  
                       img_scale, c2, ax6) 
-  
+      
 # ----------------------------------------------------------------------------
 # ---------- Plot figures requiring iteration through time ----------
 # ----------------------------------------------------------------------------
@@ -458,6 +459,74 @@ for i in range(plot_frame_range[0],plot_frame_range[1]+1):
                                time_mapping, field_avg_var, field_avg_x, i, 
                                ax4, ec, c)
         
+    if 'compressibility_check' in plots_to_generate:
+        # ----- initialize plot vars -----
+        num_categories = 6
+        category_var = 'Eyy'
+        y_var = 'Exx'
+        x_var = 'Eyy'
+        
+        x_fit = np.linspace(0,3,500) # Eyy
+        y_fit_1 = 0.5*(1/(2*x_fit+1) - 1)
+        y_fit_2 = 0.5*(1/np.sqrt(1+2*x_fit) - 1)
+        
+        # define analysis parameters dictionary
+        analysis_params = {'x_var': x_var,
+                           'y_var': y_var,
+                           'cat_var': category_var,
+                           'samples': num_samples,
+                           'x_fit': x_fit,
+                           'y_fit_1': y_fit_1,
+                           'y_fit_2': y_fit_2
+                           }
+        
+        # define plot parameters dictionary
+        plot_params_8 = {'figsize': (3,3),
+                   'xlabel': y_var,
+                   'ylabel': x_var,
+                   'y_fit_1_label': '$\lambda_x = \lambda_y^{-1}$',
+                   'y_fit_2_label': '$\lambda_x = \lambda_y^{-1/2}$',
+                   'cluster_alpha': 0.5,
+                   'tight_layout': False,
+                   'grid_alpha': 0.5,
+                   'm_size': 4,
+                   'm_legend_size': 7,
+                   'm_alpha': 0.5,
+                   'fontsize': 5,
+                   'legend_fontsize': 4,
+                   'linewidth': 0.8,
+                   'linestyle1': '--',
+                   'linestyle2': '-',
+                   'xlims': [1.2*round(first_frame_df[x_var].min(),1),
+                             1.2*round(last_frame_df[x_var].quantile(0.995),2)],
+                   'ylims': [1.2*round(first_frame_df[y_var].quantile(0.995),2),
+                             1.2*round(last_frame_df[y_var].quantile(0.001),2)]
+                   }
+        
+        # calculate variable magnitude range bounds
+        max_category_band = round(mask_frame_df[category_var].quantile(0.85),2)
+        min_category_band = round(mask_frame_df[category_var].min(),2)
+        
+        category_ranges = np.linspace(min_category_band, max_category_band, 
+                                      num_categories)
+        
+        # find indices of points on sample belonging to each category
+        category_indices = find_points_in_categories(num_categories, 
+                                                     category_ranges, 
+                                                     category_var, 
+                                                     mask_frame_df)
+        
+        print('Plotting: compressibility_check')
+        # ----- create figure -----
+        if i == plot_frame_range[0]:
+            fig7 = plt.figure(figsize = plot_params_5['figsize'])
+            ax7 = fig7.add_subplot(1,1,1)
+        
+        plot_compressibility_check_clusters(frame_df, analysis_params, 
+                                            plot_params_8, num_categories, 
+                                            category_indices, plot_frame_range,
+                                            i, ax7, c, ec)
+        
 plt.tight_layout()       
 plt.show()
 
@@ -483,141 +552,7 @@ if 'global_stress_strain' in plots_to_generate:
     
     create_simple_scatter(x_glob_ss, y_glob_ss, plot_params, plot_frame_range, 
                           ec, c, ax3)
-       
                 
-#%% ----- overlay physical locations of clusters on sample - rel inc/decr -----
-if 'overlay_pts_on_sample_relative' in plots_to_generate:
-    print('Plotting: overlay_pts_on_sample_relative')
-    # ------------------------------------------------------------------------
-    # ----- initialize plot vars -----
-    # ------------------------------------------------------------------------
-    num_categories = 2
-    var_interest = 'Eyy'
-    category_var = 'dEyy/dt'
-    # compute aspect ratio of sample to set figure size
-    width = first_frame_df['x_mm'].max() - first_frame_df['x_mm'].min()
-    height = first_frame_df['y_mm'].max() - first_frame_df['y_mm'].min()
-    axis_buffer = 1
-    fig_width = 2.5
-    fig_height = height*axis_buffer/width*fig_width
-    
-    # define plot parameters dictionary
-    plot_params = {'figsize': (fig_width,fig_height),
-               'xlabel': 'x (mm)',
-               'ylabel': 'y (mm)',
-               'ref_c': '#D0D3D4',
-               'ref_ec': '#D0D3D4',
-               'ref_alpha': 0.3,
-               'cluster_alpha': 1.0,
-               'tight_layout': False,
-               'axes_scaled': True,
-               'grid_alpha': 0.5,
-               'm_size': 2,
-               'm_legend_size': 7,
-               'm_alpha': 0.4,
-               'fontsize': 5,
-               'linewidth': 0,
-               'linestyle': '-',
-               'xlims': [0.95*round(first_frame_df['x_mm'].min(),1),
-                         1.05*round(first_frame_df['x_mm'].max(),1)],
-               'ylims': [0.95*round(first_frame_df['y_mm'].min(),1),
-                         1.05*round(first_frame_df['y_mm'].max(),1)],
-               }
-    
-    # define series representing change in category var between frames    
-    category_ranges = [-np.inf, 0]
-        
-    diff_df = pd.DataFrame()
-    
-    diff_df[category_var] = last_frame_df[var_interest] - first_frame_rel_df[var_interest]
-            
-    category_indices = find_points_in_categories(num_categories, category_ranges, 
-                                  category_var, diff_df)
-    
-    if load_multiple_frames:
-        overlay_pts_on_sample(plot_params, mask_frame, num_categories, 
-                              category_indices, category_ranges, 
-                              load_multiple_frames, dir_gom_results, 
-                              img_scale, c2, data_df)
-    else:
-        overlay_pts_on_sample(plot_params, mask_frame, num_categories, 
-                              category_indices, category_ranges, 
-                              load_multiple_frames, dir_gom_results, 
-                              img_scale, c2)
-    
-        
-#%% ----- check compressibility for each cluster -----
-if 'compressibility_check' in plots_to_generate:
-    print('Plotting: compressibility_check')
-    # ------------------------------------------------------------------------
-    # ----- initialize plot vars -----
-    # ------------------------------------------------------------------------
-    num_categories = 6
-    category_var = 'Eyy'
-    y_var = 'Exx'
-    x_var = 'Eyy'
-    
-    x_fit = np.linspace(0,3,500) # Eyy
-    y_fit_1 = 0.5*(1/(2*x_fit+1) - 1)
-    y_fit_2 = 0.5*(1/np.sqrt(1+2*x_fit) - 1)
-    
-    # define analysis parameters dictionary
-    analysis_params = {'x_var': x_var,
-                       'y_var': y_var,
-                       'cat_var': category_var,
-                       'samples': 8000,
-                       'x_fit': x_fit,
-                       'y_fit_1': y_fit_1,
-                       'y_fit_2': y_fit_2
-                       }
-    
-    # define plot parameters dictionary
-    plot_params = {'figsize': (3,3),
-               'xlabel': y_var,
-               'ylabel': x_var,
-               'y_fit_1_label': '$\lambda_x = \lambda_y^{-1}$',
-               'y_fit_2_label': '$\lambda_x = \lambda_y^{-1/2}$',
-               'cluster_alpha': 0.5,
-               'tight_layout': False,
-               'grid_alpha': 0.5,
-               'm_size': 4,
-               'm_legend_size': 7,
-               'm_alpha': 0.5,
-               'fontsize': 5,
-               'legend_fontsize': 4,
-               'linewidth': 0.8,
-               'linestyle1': '--',
-               'linestyle2': '-',
-               'xlims': [1.2*round(first_frame_df[x_var].min(),1),
-                         1.2*round(last_frame_df[x_var].quantile(0.995),2)],
-               'ylims': [1.2*round(first_frame_df[y_var].quantile(0.995),2),
-                         1.2*round(last_frame_df[y_var].quantile(0.001),2)]
-               }
-    
-    # calculate variable magnitude range bounds
-    max_category_band = round(mask_frame_df[category_var].quantile(0.85),2)
-    min_category_band = round(mask_frame_df[category_var].min(),2)
-    
-    category_ranges = np.linspace(min_category_band, max_category_band, 
-                                  num_categories)
-    
-    # find indices of points on sample belonging to each category
-    category_indices = find_points_in_categories(num_categories, category_ranges, 
-                                  category_var, mask_frame_df)
-
-    if load_multiple_frames:
-        plot_compressibility_check_clusters(analysis_params, plot_params, 
-                                       num_categories, category_indices, 
-                                       plot_frame_range,
-                                       load_multiple_frames, dir_gom_results, 
-                                       c, ec, data_df)
-    else:
-        plot_compressibility_check_clusters(analysis_params, plot_params, 
-                                       num_categories, category_indices, 
-                                       plot_frame_range,
-                                       load_multiple_frames, dir_gom_results, 
-                                       c, ec)
-        
 #%% ----- PLOT STRESS vs TIME FOR REGIONS WHICH CONTRACT/EXTEND -----
 if 'plot_var_vs_time_clusters' in plots_to_generate:
     print('Plotting: plot_var_vs_time_clusters')
