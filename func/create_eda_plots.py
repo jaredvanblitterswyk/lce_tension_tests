@@ -372,26 +372,22 @@ def plot_compressibility_check_clusters(frame_df, analysis_params, plot_params,
         ax.tick_params(labelsize = plot_params['fontsize'])
         ax.grid(True, alpha = plot_params['grid_alpha'], zorder = 0)
     
-def plot_var_vs_time_clusters(analysis_params, plot_params, 
+def plot_var_vs_time_clusters(frame_df, analysis_params, plot_params, 
                                num_categories, category_indices, 
-                               plot_frame_range, load_multiple_frames, 
-                               dir_results, img_scale, time_mapping, 
-                               orientation, ec, c, data_df = None):
+                               plot_frame_range, i, ax, ec, c):
     '''Generate scatter plots of values from points on the sample belonging to
     categories defined based on an input variable and mask frame
     
-    Args: 
+    Args:
+        frame_df (dataframe): results from current frame
         analysis_params (dict): variables used for plot on x,y and categories
         plot_params (dict): dictionary of parameters to customize plot
         num_categories (int): number of categories used to cluster points
         category_indices (dict): contains index series of points corresponding
             to each category
         plot_frame_range (array): min and max frame numbers to plot
-        load_multiple_frames (bool): flag to process in batch or frame-by-frame
-        dir_results (str): dic results dictionary
-        img_scale (float): mm/pixel scale for images
-        time_mapping (dict): map frame number to test time
-        orientation (str): orientation of sample in field of view
+        i (int): current frame
+        ax (object): handle of current axes
         ec (array): list of possible marker edge colours
         c (array): list of possible face colours
         data_df (dataframe, optional): pre-loaded results from all frames in
@@ -401,69 +397,51 @@ def plot_var_vs_time_clusters(analysis_params, plot_params,
         Figure
 
     '''
-    # ------------------------------------------------------------------------
-    # ----- create figure -----
-    # ------------------------------------------------------------------------
-    f = plt.figure(figsize = plot_params['figsize'])
-    ax = f.add_subplot(1,1,1)
-     
-    for i in range(plot_frame_range[0]+1,plot_frame_range[1]+1):           
-        # ---------- load data for current frame ----------
-        if load_multiple_frames: 
-            frame_df = data_df[data_df['frame'] == i]
-            
-        else:
-            frame_df = return_frame_dataframe(i, dir_results)
-            frame_df = add_features(frame_df, img_scale, time_mapping, 
-                                    orientation)
-                    
-        for j in range(0,num_categories):
+                   
+    for j in range(0,num_categories):
 
-            category_df = frame_df[frame_df.index.isin(category_indices[j].values)]
+        category_df = frame_df[frame_df.index.isin(category_indices[j].values)]
+        
+        if category_df.shape[0] > analysis_params['samples']:
+            category_sample = category_df.sample(
+                n = analysis_params['samples'], random_state = 1
+                )
+        else:
+            category_sample = category_df.copy()
+        
+        # extract mean of all points in cluster
+        x = category_sample.groupby(
+            analysis_params['x_var'])[analysis_params['x_var']].mean()
+        y = category_sample.groupby(
+            analysis_params['x_var'])[analysis_params['y_var']].mean()
+                
+        # ---------- add data ----------
+        ax.scatter(x, y, s = plot_params['m_size'], c = c[j], 
+                             edgecolors = ec[j], 
+                             alpha = plot_params['m_alpha'], 
+                             linewidths = plot_params['linewidth'],
+                             label = plot_params['labels'][j]
+                             )
             
-            if category_df.shape[0] > analysis_params['samples']:
-                category_sample = category_df.sample(
-                    n = analysis_params['samples'], random_state = 1
-                    )
-            else:
-                category_sample = category_df.copy()
-            
-            # extract mean of all points in cluster
-            x = category_sample.groupby(
-                analysis_params['x_var'])[analysis_params['x_var']].mean()
-            y = category_sample.groupby(
-                analysis_params['x_var'])[analysis_params['y_var']].mean()
-                    
-            # ---------- add data ----------
-            ax.scatter(x, y, s = plot_params['m_size'], c = c[j], 
-                                 edgecolors = ec[j], 
-                                 alpha = plot_params['m_alpha'], 
-                                 linewidths = plot_params['linewidth'],
-                                 label = plot_params['labels'][j]
-                                 )
-            
-            if i == plot_frame_range[0]+1:
-                # add legend on first pass
-                legend = ax.legend(loc='upper right', 
-                                   fontsize = plot_params['legend_fontsize'])
-                legend.get_frame().set_linewidth(plot_params['linewidth'])
-                for handle in legend.legendHandles:
-                    handle.set_sizes([plot_params['m_legend_size']])
+    if i == plot_frame_range[0]:
+        # add legend on first pass
+        legend = ax.legend(loc='upper right', 
+                           fontsize = plot_params['legend_fontsize'])
+        legend.get_frame().set_linewidth(plot_params['linewidth'])
+        for handle in legend.legendHandles:
+            handle.set_sizes([plot_params['m_legend_size']])
     
-    # set axes parameters
-    ax.set_ylim(plot_params['ylims'])
-    ax.set_xlim(plot_params['xlims'])
-    ax.set_ylabel(analysis_params['y_var'], fontsize = plot_params['fontsize'])
-    ax.set_xlabel(analysis_params['x_var'], fontsize = plot_params['fontsize'])
-    ax.tick_params(labelsize = plot_params['fontsize'])
-    ax.grid(True, alpha = plot_params['grid_alpha'], zorder = 0)
-    if plot_params['log_x']:
-            ax.set_xscale('log')
-    else:
-            ax.set_xscale('linear')
-    
-    plt.show()
-    
+        # set axes parameters
+        ax.set_ylim(plot_params['ylims'])
+        ax.set_xlim(plot_params['xlims'])
+        ax.set_ylabel(analysis_params['y_var'], fontsize = plot_params['fontsize'])
+        ax.set_xlabel(analysis_params['x_var'], fontsize = plot_params['fontsize'])
+        ax.tick_params(labelsize = plot_params['fontsize'])
+        ax.grid(True, alpha = plot_params['grid_alpha'], zorder = 0)
+        if plot_params['log_x']:
+                ax.set_xscale('log')
+        else:
+                ax.set_xscale('linear')  
     
 def plot_norm_stress_strain_rates_vs_time(analysis_params, plot_params, 
                                num_categories, category_indices, 

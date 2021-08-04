@@ -88,8 +88,7 @@ results_files = [f for f in os.listdir(dir_gom_results) if f.endswith('.pkl')]
 num_frames = len(results_files)
 
 # plots to generate
-plots_to_generate = ['overlay_pts_on_sample_relative',
-                     'overlay_pts_on_sample_var',
+plots_to_generate = ['plot_var_vs_time_clusters',
                      'compressibility_check',
                      'other'
                      ]
@@ -527,6 +526,64 @@ for i in range(plot_frame_range[0],plot_frame_range[1]+1):
                                             category_indices, plot_frame_range,
                                             i, ax7, c, ec)
         
+        if 'plot_var_vs_time_clusters' in plots_to_generate:
+            print('Plotting: plot_var_vs_time_clusters')
+            num_categories = 2
+            x_var = 'time'
+            y_var = 'Eyy'
+            category_var = 'dEyy/dt'
+            
+            # define analysis parameters dictionary
+            analysis_params = {'x_var': x_var,
+                               'y_var': y_var,
+                               'cat_var': category_var,
+                               'samples': num_samples,
+                               }
+            
+            # define plot parameters dictionary
+            plot_params_9 = {'figsize': (3,3),
+                       'xlabel': y_var,
+                       'ylabel': x_var,
+                       'labels': [category_var+' < 0', category_var+ ' >= 0'],
+                       'cluster_alpha': 0.5,
+                       'tight_layout': False,
+                       'grid_alpha': 0.5,
+                       'm_size': 4,
+                       'm_legend_size': 7,
+                       'm_alpha': 1,
+                       'fontsize': 5,
+                       'legend_fontsize': 4,
+                       'linewidth': 0.8,
+                       'linestyle1': '--',
+                       'linestyle2': '-',
+                       'xlims': [1.2*round(first_frame_df[x_var].min(),1),
+                                 1.2*round(last_frame_df[x_var].quantile(0.995),2)],
+                       'ylims': [1.2*round(first_frame_df[y_var].quantile(0.995),2),
+                                 1.2*round(last_frame_df[y_var].quantile(0.001),2)],
+                       'log_x': True
+                       }
+        
+            # define series representing change in category var between frames    
+            category_ranges = [-np.inf, 0]
+                
+            diff_df = pd.DataFrame()
+            
+            diff_df[category_var] = last_frame_df[y_var] - first_frame_rel_df[y_var]
+                    
+            category_indices = find_points_in_categories(num_categories, category_ranges, 
+                                          category_var, diff_df)
+        
+            category_df = first_frame_df[first_frame_df.index.isin(category_indices[0].values)]
+            
+            # ----- create figure -----
+            if i == plot_frame_range[0]:
+                fig9 = plt.figure(figsize = plot_params_9['figsize'])
+                ax9 = fig9.add_subplot(1,1,1)
+                
+            plot_var_vs_time_clusters(frame_df, analysis_params, plot_params_9, 
+                                      num_categories, category_indices, 
+                                      plot_frame_range, i, ax9, ec2, c2)
+        
 plt.tight_layout()       
 plt.show()
 
@@ -553,68 +610,6 @@ if 'global_stress_strain' in plots_to_generate:
     create_simple_scatter(x_glob_ss, y_glob_ss, plot_params, plot_frame_range, 
                           ec, c, ax3)
                 
-#%% ----- PLOT STRESS vs TIME FOR REGIONS WHICH CONTRACT/EXTEND -----
-if 'plot_var_vs_time_clusters' in plots_to_generate:
-    print('Plotting: plot_var_vs_time_clusters')
-    num_categories = 2
-    x_var = 'time'
-    y_var = 'Eyy'
-    category_var = 'dEyy/dt'
-    
-    # define analysis parameters dictionary
-    analysis_params = {'x_var': x_var,
-                       'y_var': y_var,
-                       'cat_var': category_var,
-                       'samples': 8000,
-                       }
-    
-    # define plot parameters dictionary
-    plot_params = {'figsize': (3,3),
-               'xlabel': y_var,
-               'ylabel': x_var,
-               'labels': [category_var+' < 0', category_var+ ' >= 0'],
-               'cluster_alpha': 0.5,
-               'tight_layout': False,
-               'grid_alpha': 0.5,
-               'm_size': 4,
-               'm_legend_size': 7,
-               'm_alpha': 1,
-               'fontsize': 5,
-               'legend_fontsize': 4,
-               'linewidth': 0.8,
-               'linestyle1': '--',
-               'linestyle2': '-',
-               'xlims': [1.2*round(first_frame_df[x_var].min(),1),
-                         1.2*round(last_frame_df[x_var].quantile(0.995),2)],
-               'ylims': [1.2*round(first_frame_df[y_var].quantile(0.995),2),
-                         1.2*round(last_frame_df[y_var].quantile(0.001),2)],
-               'log_x': True
-               }
-
-    # define series representing change in category var between frames    
-    category_ranges = [-np.inf, 0]
-        
-    diff_df = pd.DataFrame()
-    
-    diff_df[category_var] = last_frame_df[y_var] - first_frame_rel_df[y_var]
-            
-    category_indices = find_points_in_categories(num_categories, category_ranges, 
-                                  category_var, diff_df)
-
-    category_df = first_frame_df[first_frame_df.index.isin(category_indices[0].values)]
-    
-    if load_multiple_frames:
-        plot_var_vs_time_clusters(analysis_params, plot_params, 
-                               num_categories, category_indices, 
-                               plot_frame_range, load_multiple_frames, 
-                               dir_gom_results, img_scale, time_mapping, 
-                               orientation, ec2, c2, data_df)
-    else:
-        plot_var_vs_time_clusters(analysis_params, plot_params, 
-                           num_categories, category_indices, 
-                           plot_frame_range, load_multiple_frames, 
-                           dir_gom_results, img_scale, time_mapping, 
-                           orientation, ec2, c2)
         
 #%% ----- PLOT NORMALIZED STRESS AND STRAIN RATES -----
 if 'plot_norm_stress_strain_rates_vs_time' in plots_to_generate:
