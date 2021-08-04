@@ -6,6 +6,9 @@ Created on Fri Mar 12 10:45:18 2021
 """
 import os
 import sys
+import sys
+sys.path.append('Z:/Python/tension_test_processing')
+sys.path.append(os.path.join(sys.path[-1],'func'))
 import csv
 import pandas as pd
 import numpy as np
@@ -85,7 +88,7 @@ results_files = [f for f in os.listdir(dir_gom_results) if f.endswith('.pkl')]
 num_frames = len(results_files)
 
 # plots to generate
-plots_to_generate = ['scatter_var_categories',
+plots_to_generate = ['overlay_pts_on_sample_relative',
                      'overlay_pts_on_sample_var',
                      'other'
                      ]
@@ -194,6 +197,9 @@ if 'scatter_var_categories' in plots_to_generate:
     category_indices = find_points_in_categories(num_categories, category_ranges, 
                                                  category_var, mask_frame_df)
 
+# ----------------------------------------------------------------------------
+# --- Plot cluster points overlaid on sample ---
+# ----------------------------------------------------------------------------
 if 'overlay_pts_on_sample_var' in plots_to_generate:
     # ----- initialize plot vars -----
     num_categories = 6
@@ -237,7 +243,74 @@ if 'overlay_pts_on_sample_var' in plots_to_generate:
     # find indices of points on sample belonging to each category
     category_indices = find_points_in_categories(num_categories, category_ranges, 
                                   category_var, mask_frame_df)
-
+    
+    print('Plotting: overlay_pts_on_sample_var')
+    
+    # ----- create figure -----
+    fig5 = plt.figure(figsize = plot_params_5['figsize'])
+    ax5 = fig5.add_subplot(1,1,1)
+    
+    overlay_pts_on_sample(plot_params_5, first_frame_df, mask_frame_df, 
+                          num_categories, category_indices, category_ranges,  
+                          img_scale, c, ax5) 
+    
+if 'overlay_pts_on_sample_relative' in plots_to_generate:
+    # ----- initialize plot vars -----
+    num_categories = 2
+    var_interest = 'Eyy'
+    category_var = 'dEyy/dt'
+    # compute aspect ratio of sample to set figure size
+    width = first_frame_df['x_mm'].max() - first_frame_df['x_mm'].min()
+    height = first_frame_df['y_mm'].max() - first_frame_df['y_mm'].min()
+    axis_buffer = 1
+    fig_width = 2.5
+    fig_height = height*axis_buffer/width*fig_width
+    
+    # define plot parameters dictionary
+    plot_params_6 = {'figsize': (fig_width,fig_height),
+               'xlabel': 'x (mm)',
+               'ylabel': 'y (mm)',
+               'ref_c': '#D0D3D4',
+               'ref_ec': '#D0D3D4',
+               'ref_alpha': 0.3,
+               'cluster_alpha': 1.0,
+               'tight_layout': False,
+               'axes_scaled': True,
+               'grid_alpha': 0.5,
+               'm_size': 2,
+               'm_legend_size': 7,
+               'm_alpha': 0.4,
+               'fontsize': 5,
+               'linewidth': 0,
+               'linestyle': '-',
+               'xlims': [0.95*round(first_frame_df['x_mm'].min(),1),
+                         1.05*round(first_frame_df['x_mm'].max(),1)],
+               'ylims': [0.95*round(first_frame_df['y_mm'].min(),1),
+                         1.05*round(first_frame_df['y_mm'].max(),1)],
+               }
+    
+    # define series representing change in category var between frames    
+    category_ranges = [-np.inf, 0]
+        
+    diff_df = pd.DataFrame()
+    
+    diff_df[category_var] = last_frame_df[var_interest] - first_frame_rel_df[var_interest]
+            
+    category_indices = find_points_in_categories(num_categories, category_ranges, 
+                                  category_var, diff_df)
+    
+    print('Plotting: overlay_pts_on_sample_relative')
+    # ----- create figure -----
+    fig6 = plt.figure(figsize = plot_params_5['figsize'])
+    ax6 = fig6.add_subplot(1,1,1)
+    
+    overlay_pts_on_sample(plot_params_6, first_frame_df, mask_frame_df, 
+                      num_categories, category_indices, category_ranges,  
+                      img_scale, c2, ax6) 
+  
+# ----------------------------------------------------------------------------
+# ---------- Plot figures requiring iteration through time ----------
+# ----------------------------------------------------------------------------
 for i in range(plot_frame_range[0],plot_frame_range[1]+1):
     print('Processing frame: '+ str(i)+ ' ...')
     # ---------- load data for current frame ----------
@@ -410,81 +483,8 @@ if 'global_stress_strain' in plots_to_generate:
     
     create_simple_scatter(x_glob_ss, y_glob_ss, plot_params, plot_frame_range, 
                           ec, c, ax3)
-
-# ------------------------------------------------------------------------
-# --- Plot cluster points overlaid on sample ---
-# ------------------------------------------------------------------------
-if 'overlay_pts_on_sample_var' in plots_to_generate:
-    print('Plotting: overlay_pts_on_sample_var')
-    
-    # ----- create figure -----
-    fig5 = plt.figure(figsize = plot_params_5['figsize'])
-    ax5 = fig5.add_subplot(1,1,1)
-    
-    overlay_pts_on_sample(plot_params_5, first_frame_df, mask_frame_df, 
-                          num_categories, category_indices, category_ranges,  
-                          img_scale, c, ax5)        
-        
-#%% ----- overlay physical locations of clusters on sample - variable mag -----
-if 'overlay_pts_on_sample_var' in plots_to_generate:
-    print('Plotting: overlay_pts_on_sample_var')
-    # ------------------------------------------------------------------------
-    # ----- initialize plot vars -----
-    # ------------------------------------------------------------------------
-    num_categories = 6
-    category_var = 'Eyy'
-    # compute aspect ratio of sample to set figure size
-    width = first_frame_df['x_mm'].max() - first_frame_df['x_mm'].min()
-    height = first_frame_df['y_mm'].max() - first_frame_df['y_mm'].min()
-    axis_buffer = 1
-    fig_width = 2.5
-    fig_height = height*axis_buffer/width*fig_width
-    
-    # define plot parameters dictionary
-    plot_params = {'figsize': (fig_width,fig_height),
-               'xlabel': 'x (mm)',
-               'ylabel': 'y (mm)',
-               'ref_c': '#D0D3D4',
-               'ref_ec': '#D0D3D4',
-               'ref_alpha': 0.3,
-               'cluster_alpha': 1.0,
-               'tight_layout': False,
-               'axes_scaled': True,
-               'grid_alpha': 0.5,
-               'm_size': 2,
-               'm_legend_size': 7,
-               'm_alpha': 0.4,
-               'fontsize': 5,
-               'linewidth': 0,
-               'linestyle': '-',
-               'xlims': [0.95*round(first_frame_df['x_mm'].min(),1),
-                         1.05*round(first_frame_df['x_mm'].max(),1)],
-               'ylims': [0.95*round(first_frame_df['y_mm'].min(),1),
-                         1.05*round(first_frame_df['y_mm'].max(),1)],
-               }
-    
-    # calculate variable magnitude range bounds
-    max_category_band = round(mask_frame_df[category_var].quantile(0.85),2)
-    min_category_band = round(mask_frame_df[category_var].min(),2)
-    
-    category_ranges = np.linspace(min_category_band, max_category_band, 
-                                  num_categories)
-    
-    # find indices of points on sample belonging to each category
-    category_indices = find_points_in_categories(num_categories, category_ranges, 
-                                  category_var, mask_frame_df)
-
-    if load_multiple_frames:
-        overlay_pts_on_sample(plot_params, mask_frame, num_categories, 
-                              category_indices, category_ranges, 
-                              load_multiple_frames, dir_gom_results, 
-                              img_scale, c, data_df)
-    else:
-        overlay_pts_on_sample(plot_params, mask_frame, num_categories, 
-                              category_indices, category_ranges, 
-                              load_multiple_frames, dir_gom_results, 
-                              img_scale, c)
-        
+       
+                
 #%% ----- overlay physical locations of clusters on sample - rel inc/decr -----
 if 'overlay_pts_on_sample_relative' in plots_to_generate:
     print('Plotting: overlay_pts_on_sample_relative')
