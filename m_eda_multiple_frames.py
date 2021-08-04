@@ -210,7 +210,7 @@ if 'overlay_pts_on_sample_var' in plots_to_generate:
     fig_width = 2.5
     fig_height = height*axis_buffer/width*fig_width  
     
-    plot_params_5 = {'figsize': (fig_width,fig_height),
+    plot_params_7 = {'figsize': (fig_width,fig_height),
            'xlabel': 'x (mm)',
            'ylabel': 'y (mm)',
            'ref_c': '#D0D3D4',
@@ -246,12 +246,12 @@ if 'overlay_pts_on_sample_var' in plots_to_generate:
     print('Plotting: overlay_pts_on_sample_var')
     
     # ----- create figure -----
-    fig5 = plt.figure(figsize = plot_params_5['figsize'])
-    ax5 = fig5.add_subplot(1,1,1)
+    fig7 = plt.figure(figsize = plot_params_5['figsize'])
+    ax7 = fig7.add_subplot(1,1,1)
     
-    overlay_pts_on_sample(plot_params_5, first_frame_df, mask_frame_df, 
+    overlay_pts_on_sample(plot_params_7, first_frame_df, mask_frame_df, 
                           num_categories, category_indices, category_ranges,  
-                          img_scale, c, ax5) 
+                          img_scale, c, ax7) 
     
 if 'overlay_pts_on_sample_relative' in plots_to_generate:
     # ----- initialize plot vars -----
@@ -266,7 +266,7 @@ if 'overlay_pts_on_sample_relative' in plots_to_generate:
     fig_height = height*axis_buffer/width*fig_width
     
     # define plot parameters dictionary
-    plot_params_6 = {'figsize': (fig_width,fig_height),
+    plot_params_8 = {'figsize': (fig_width,fig_height),
                'xlabel': 'x (mm)',
                'ylabel': 'y (mm)',
                'ref_c': '#D0D3D4',
@@ -300,12 +300,12 @@ if 'overlay_pts_on_sample_relative' in plots_to_generate:
     
     print('Plotting: overlay_pts_on_sample_relative')
     # ----- create figure -----
-    fig6 = plt.figure(figsize = plot_params_5['figsize'])
-    ax6 = fig6.add_subplot(1,1,1)
+    fig8 = plt.figure(figsize = plot_params_5['figsize'])
+    ax8 = fig8.add_subplot(1,1,1)
     
-    overlay_pts_on_sample(plot_params_6, first_frame_df, mask_frame_df, 
+    overlay_pts_on_sample(plot_params_8, first_frame_df, mask_frame_df, 
                       num_categories, category_indices, category_ranges,  
-                      img_scale, c2, ax6) 
+                      img_scale, c2, ax8) 
       
 # ----------------------------------------------------------------------------
 # ---------- Plot figures requiring iteration through time ----------
@@ -330,7 +330,7 @@ for i in range(plot_frame_range[0],plot_frame_range[1]+1):
         plot_var = 'Eyy'
         
         # compile plot params in dictionary
-        plot_params = {'n_bins': 20, 
+        plot_params_1 = {'n_bins': 20, 
                        'xlims': [1.05*last_frame_df[plot_var].min(),
                                  1.05*last_frame_df[plot_var].max()],
                        'ylabel': plot_var,
@@ -349,7 +349,7 @@ for i in range(plot_frame_range[0],plot_frame_range[1]+1):
             fig1, axs1 = plt.subplots(subplot_dims[0], subplot_dims[1], 
                                     sharey=True, tight_layout=True)
         
-        generate_histogram(frame_df, subplot_dims, plot_var, plot_params, 
+        generate_histogram(frame_df, subplot_dims, plot_var, plot_params_1, 
                        plot_frame_range, plot_num, i, axs1, ec, c)
 
         plot_num += 1
@@ -366,7 +366,7 @@ for i in range(plot_frame_range[0],plot_frame_range[1]+1):
         
         # compile plot params in dictionary
         plot_var = 'Eyy'
-        plot_params = {'figsize': (4,2), 
+        plot_params_2 = {'figsize': (4,2), 
                        'xlims': [0, frame_max+1],
                        'xlabel': 'Frame number',
                        'ylabel': plot_var,
@@ -384,7 +384,7 @@ for i in range(plot_frame_range[0],plot_frame_range[1]+1):
             fig2 = plt.figure(figsize = plot_params['figsize'])
             ax2 = fig2.add_subplot(1,1,1)
 
-        generate_boxplot_vs_frame(frame_df, plot_var, plot_params, 
+        generate_boxplot_vs_frame(frame_df, plot_var, plot_params_2, 
                                   plot_frame_range, i, ax2)
         
     # ------------------------------------------------------------------------
@@ -407,14 +407,14 @@ for i in range(plot_frame_range[0],plot_frame_range[1]+1):
 
         
         # define analysis parameters dictionary
-        analysis_params = {'x_var': x_var,
+        analysis_params_3 = {'x_var': x_var,
                            'y_var': y_var,
                            'cat_var': category_var,
                            'samples': num_samples,
                            'mask_frame': mask_frame}
         
         # define plot parameters dictionary
-        plot_params = {'figsize': (5,4),
+        plot_params_3 = {'figsize': (5,4),
                    'xlabel': 'Time (s)',
                    'ylabel': 'Eng. Stress (MPa)',
                    'tight_layout': True,
@@ -444,18 +444,18 @@ for i in range(plot_frame_range[0],plot_frame_range[1]+1):
             field_avg_x = []
             
             # ----- create figure -----
-            fig4, ax4 = plt.subplots(subplot_dims[0], subplot_dims[1], 
+            fig3, ax3 = plt.subplots(subplot_dims[0], subplot_dims[1], 
                             figsize=plot_params['figsize'], sharey=True)
         
         # collect field average quantities for comparison
         field_avg_var.append(frame_df[analysis_params['y_var']].mean())
         field_avg_x.append(frame_df[analysis_params['x_var']].mean())
                 
-        plot_var_classes_over_time(frame_df, subplot_dims, analysis_params, 
-                               plot_params, num_categories, category_indices, 
+        plot_var_classes_over_time(frame_df, subplot_dims, analysis_params_3, 
+                               plot_params_3, num_categories, category_indices, 
                                category_ranges, plot_frame_range,
                                time_mapping, field_avg_var, field_avg_x, i, 
-                               ax4, ec, c)
+                               ax3, ec, c)
         
     if 'compressibility_check' in plots_to_generate:
         # ----- initialize plot vars -----
@@ -469,7 +469,7 @@ for i in range(plot_frame_range[0],plot_frame_range[1]+1):
         y_fit_2 = 0.5*(1/np.sqrt(1+2*x_fit) - 1)
         
         # define analysis parameters dictionary
-        analysis_params = {'x_var': x_var,
+        analysis_params_4 = {'x_var': x_var,
                            'y_var': y_var,
                            'cat_var': category_var,
                            'samples': num_samples,
@@ -479,7 +479,7 @@ for i in range(plot_frame_range[0],plot_frame_range[1]+1):
                            }
         
         # define plot parameters dictionary
-        plot_params_8 = {'figsize': (3,3),
+        plot_params_4 = {'figsize': (3,3),
                    'xlabel': y_var,
                    'ylabel': x_var,
                    'y_fit_1_label': '$\lambda_x = \lambda_y^{-1}$',
@@ -517,11 +517,11 @@ for i in range(plot_frame_range[0],plot_frame_range[1]+1):
         print('Plotting: compressibility_check')
         # ----- create figure -----
         if i == plot_frame_range[0]:
-            fig7 = plt.figure(figsize = plot_params_5['figsize'])
-            ax7 = fig7.add_subplot(1,1,1)
+            fig4 = plt.figure(figsize = plot_params_5['figsize'])
+            ax4 = fig4.add_subplot(1,1,1)
         
-        plot_compressibility_check_clusters(frame_df, analysis_params, 
-                                            plot_params_8, num_categories, 
+        plot_compressibility_check_clusters(frame_df, analysis_params_4, 
+                                            plot_params_4, num_categories, 
                                             category_indices, plot_frame_range,
                                             i, ax7, c, ec)
         
@@ -533,14 +533,14 @@ for i in range(plot_frame_range[0],plot_frame_range[1]+1):
         category_var = 'dEyy/dt'
         
         # define analysis parameters dictionary
-        analysis_params = {'x_var': x_var,
+        analysis_params_5 = {'x_var': x_var,
                            'y_var': y_var,
                            'cat_var': category_var,
                            'samples': num_samples,
                            }
         
         # define plot parameters dictionary
-        plot_params_9 = {'figsize': (3,3),
+        plot_params_5 = {'figsize': (3,3),
                    'xlabel': y_var,
                    'ylabel': x_var,
                    'labels': [category_var+' < 0', category_var+ ' >= 0'],
@@ -577,10 +577,10 @@ for i in range(plot_frame_range[0],plot_frame_range[1]+1):
         print('Plotting: plot_var_vs_time_clusters')
         # ----- create figure -----
         if i == plot_frame_range[0]:
-            fig9 = plt.figure(figsize = plot_params_9['figsize'])
-            ax9 = fig9.add_subplot(1,1,1)
+            fig5 = plt.figure(figsize = plot_params_9['figsize'])
+            ax5 = fig5.add_subplot(1,1,1)
             
-        plot_var_vs_time_clusters(frame_df, analysis_params, plot_params_9, 
+        plot_var_vs_time_clusters(frame_df, analysis_params_5, plot_params_5, 
                                   num_categories, category_indices, 
                                   plot_frame_range, i, ax9, ec2, c2)
         
@@ -593,7 +593,7 @@ for i in range(plot_frame_range[0],plot_frame_range[1]+1):
         category_var = 'Eyy'
         
         # define analysis parameters dictionary
-        analysis_params = {'x_var': x_var,
+        analysis_params_6 = {'x_var': x_var,
                            'y_var': y_var,
                            'y_var_2': y_var_2,
                            'cat_var': category_var,
@@ -656,7 +656,7 @@ plt.show()
 if 'global_stress_strain' in plots_to_generate:
     print('Plotting: global_stress_strain')
     # ----- initialize plot vars -----
-    plot_params = {'figsize': (4,2),
+    plot_params_7 = {'figsize': (4,2),
                'm_size': 2,
                'linewidth': 0.5,
                'xlabel': 'Time (s)',
@@ -667,11 +667,11 @@ if 'global_stress_strain' in plots_to_generate:
                'log_x': True}
        
     # ----- create figure -----
-    fig3 = plt.figure(figsize = plot_params['figsize'])
-    ax3 = fig3.add_subplot(1,1,1)
+    fig7 = plt.figure(figsize = plot_params['figsize'])
+    ax7 = fig7.add_subplot(1,1,1)
     
-    create_simple_scatter(x_glob_ss, y_glob_ss, plot_params, plot_frame_range, 
-                          ec, c, ax3)
+    create_simple_scatter(x_glob_ss, y_glob_ss, plot_params_7, plot_frame_range, 
+                          ec, c, ax7)
 
 if 'plot_norm_stress_strain_rates_vs_time' in plots_to_generate:
     num_categories = 2
@@ -683,7 +683,7 @@ if 'plot_norm_stress_strain_rates_vs_time' in plots_to_generate:
     print('Plotting: plot_norm_stress_strain_rates_vs_time')
     # ----- initialize plot vars -----
     # define plot parameters dictionary
-    plot_params_10 = {'figsize': (3,3),
+    plot_params_6 = {'figsize': (3,3),
                'xlabel': x_var,
                'ylabel': 'norm(dX/dt)',
                'labels_y1': [y_var+' < 0', y_var+ ' >= 0'],
@@ -710,10 +710,10 @@ if 'plot_norm_stress_strain_rates_vs_time' in plots_to_generate:
                }
     
     # ----- create figure -----
-    fig10 = plt.figure(figsize = plot_params_10['figsize'])
-    ax10 = fig10.add_subplot(1,1,1)
+    fig6 = plt.figure(figsize = plot_params_10['figsize'])
+    ax6 = fig6.add_subplot(1,1,1)
 
-    plot_norm_stress_strain_rates_vs_time(analysis_params, plot_params_10, 
+    plot_norm_stress_strain_rates_vs_time(analysis_params_6, plot_params_6, 
                                           num_categories, category_series, 
                                           x_series, dt, plot_frame_range, i, 
-                                          ax10, ec2, c2)    
+                                          ax6, ec2, c2)    
