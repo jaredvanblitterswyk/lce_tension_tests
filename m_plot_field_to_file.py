@@ -61,7 +61,7 @@ spec_id = batch_ext+'_'+sample_ext # full specimen id
 Ny, Nx = 2048, 2448 # pixel resolution in x, y axis
 img_scale = 0.01568 # mm/pix
 t = 1.0 # thickness of sample [mm]
-cmap_name = 'lajolla' # custom colormap stored in mpl_styles
+cmap_name = 'tokyo' # custom colormap stored in mpl_styles
 cbar_levels = 25 # colorbar levels
 
 # load in colormap and define plot style
@@ -110,7 +110,7 @@ plot_var_specific = {'Exx': {
 #%%
 # load in data
 frame_count = 0
-for i in range(1,len(files_pkl)):
+for i in range(84,len(files_pkl)):
     print('Processing frame: '+str(i))
     save_filename = 'results_df_frame_'+"{:02d}".format(i)+'.pkl'
     frame_df = pd.read_pickle(os.path.join(dir_gom_results,save_filename))

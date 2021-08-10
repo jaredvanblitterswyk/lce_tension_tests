@@ -19,6 +19,8 @@ from mpl_toolkits.axes_grid1 import make_axes_locatable
 from scipy.interpolate import interp2d, griddata
 import matplotlib.tri as tri
 import math as m
+import pyarrow as pa
+import pyarrow.parquet as pq
 
 # -- TO DO: would need to reformat m_process_dic_fields_btb_imaging
 # currently not setup up properly for importing functions as a package
@@ -346,7 +348,7 @@ strain_labels = ['Exx', 'Eyy', 'Exy']
 import time
 start_time = time.time()
 
-for i in range(1,len(mts_df)):
+for i in range(0,5):#len(mts_df)):
     # extract frame number and display
     frame_no = files_gom[i][28:-10] # lcei_001_006_t02_r00
     #frame_no = files_gom[i][35:-10] 
@@ -398,8 +400,12 @@ for i in range(1,len(mts_df)):
     # drop rows with no cross-section listed
     results_df = results_df.dropna(axis=0, how = 'any')
     
-    save_filename = 'results_df_frame_' + '{:02d}'.format(int(frame_no)) + '.pkl'
-    results_df.to_pickle(os.path.join(dir_root_local,save_filename))
+    save_filename = 'results_df_frame_' + '{:02d}'.format(int(frame_no)) + '.parquet'
+    # table = pa.Table.from_pandas(results_df)
+    # pq.write_table(table, save_filename)
+    results_df.to_parquet(os.path.join(dir_root_local,save_filename),
+                          engine='pyarrow', index=True)
+    #results_df.to_pkl(os.path.join(dir_root_local,save_filename))
     print("--- %s seconds ---" % (time.time() - start_time))
 
 #%% ===== INTERPOLATION DEBUGGING CODE =====

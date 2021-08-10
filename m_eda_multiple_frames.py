@@ -14,101 +14,31 @@ import pandas as pd
 import numpy as np
 import matplotlib as mpl
 import matplotlib.pyplot as plt
+import user_defined_processing_parameters as udp
 from func.create_eda_plots import (create_simple_scatter, 
-                                   generate_histogram, 
-                                   generate_boxplot_vs_frame,
-                                   plot_var_classes_over_time,
+                                   histogram_vs_frame, 
+                                   boxplot_vs_frame,
+                                   var_clusters_vs_time_subplots,
                                    overlay_pts_on_sample,
-                                   plot_compressibility_check_clusters,
-                                   plot_var_vs_time_clusters,
-                                   plot_norm_stress_strain_rates_vs_time)
+                                   compressibility_check_clusters,
+                                   var_vs_time_clusters_same_axis,
+                                   norm_stress_strain_rates_vs_time)
 from func.df_extract_transform import (add_features, 
                                        return_frame_dataframe, 
                                        return_points_in_all_frames,
                                        find_points_in_categories)
 from func.mts_extract_data import extract_mts_data
-from matplotlib.colors import LinearSegmentedColormap
+
 
 #%% ----- MAIN SCRIPT -----
-# ----------------------------------------------------------------------------
-# ----- configure directories, plot colors and constants -----
-# ----------------------------------------------------------------------------
-# root directory
-dir_root = 'Z:/Experiments/lce_tension'
-# extensions to access sub-directories
-batch_ext = 'lcei_003'
-mts_ext = 'mts_data'
-sample_ext = '001_t03_r0X'
-gom_ext = 'gom_results'
-cmap_name = 'lajolla' # custom colormap stored in mpl_styles
-frame_map_filename = batch_ext+'_'+sample_ext+'_frame_time_mapping.csv'
-mts_columns = ['time', 'crosshead', 'load', 'trigger', 
-               'cam_44', 'cam_43', 'trig_arduino']
-mts_col_dtypes = {'time':'float', 'crosshead':'float', 'load':'float',
-              'trigger': 'int64', 'cam_44': 'int64', 'cam_43': 'int64',
-              'trig_arduino': 'int64'}
-load_multiple_frames = False # load single frames flag
-orientation = 'vertical'
-frame_max = 6 # max frame to consider
-frame_min = 1 # min frame to plot
-frame_rel_min = 5 # start frame for computing relative change between frames
-frame_range = frame_max - frame_min
-plot_frame_range = [frame_min, frame_max] # range of frames to plot
-end_frame = 34 # manually define last frame where all points still in FOV
-mask_frame = 5 # frame to use to mask points 
-post_mask_frame = 25 # frame to compare to mask to determine if strain inc/dec
-img_scale = 0.01568 # image scale (mm/pix)
-
-# colour and edge colour arrays (hard coded to 7 or less strain bands)
-ec = ['#917265', '#896657', '#996f71', '#805a66', '#453941',
-      '#564e5c', '#32303a']
-c = ['#d1c3bd', '#ccb7ae', '#b99c9d', '#a6808c', '#8b7382',
-     '#706677', '#565264']
-# color and edge colour arrays for two sereies/clusters
-ec2 = ['#917265', '#564e5c']
-c2 = ['#d1c3bd', '#706677']
-
-# color and edge colour arrays for two sereies/clusters
-ec1 = ['#564e5c']
-c1 = ['#706677']
-
-# load in colormap
-cm_data = np.loadtxt('Z:/Python/mpl_styles/'+cmap_name+'.txt')
-custom_map = LinearSegmentedColormap.from_list('custom', cm_data)
-
-# define custom plot style
 plt.style.use('Z:/Python/mpl_styles/stg_plot_style_1.mplstyle')
-
-# define full paths to mts and gom data
-dir_frame_map = os.path.join(dir_root,batch_ext,mts_ext,batch_ext+'_'+sample_ext)
-dir_mts = os.path.join(dir_root,batch_ext,mts_ext,batch_ext+'_'+sample_ext)
-dir_gom_results = os.path.join(dir_root,batch_ext,sample_ext,gom_ext)
-
-results_files = [f for f in os.listdir(dir_gom_results) if f.endswith('.pkl')]
-num_frames = len(results_files)
-
-# plots to generate
-plots_to_generate = ['plot_norm_stress_strain_rates_vs_time',
-                     'other'
-                     ]
-
-other_plots = ['boxplot',
-               'histogram',
-               'plot_var_vs_time_clusters',
-               'global_stress_strain',
-               'scatter_var_categories',
-               'overlay_pts_on_sample_var',
-               'overlay_pts_on_sample_relative',
-               'compressibility_check',
-               'plot_var_vs_time_clusters',
-               'plot_norm_stress_strain_rates_vs_time'
-               ]
+plt.close('all')
 #%% ----- LOAD DATA -----
 # ----------------------------------------------------------------------------
 # ----- load in frame-time mapping file -----
 # ----------------------------------------------------------------------------
 try:
-    frame_map_filepath = os.path.join(dir_frame_map, frame_map_filename)
+    frame_map_filepath = os.path.join(udp.dir_frame_map, udp.frame_map_filename)
     frames_list = pd.read_csv(frame_map_filepath)
     #convert to dictionary
     time_mapping = frames_list.iloc[:,2].to_dict()
@@ -118,12 +48,12 @@ except:
 # ----------------------------------------------------------------------------
 # ----- load in DIC to dataframe -----
 # ----------------------------------------------------------------------------
-if load_multiple_frames:
-    for i in range(frame_min,frame_max+1):
+if udp.load_multiple_frames:
+    for i in range(udp.frame_min, udp.frame_max+1):
         print('Adding frame: '+str(i))
         save_filename = 'results_df_frame_' + '{:02d}'.format(i) + '.pkl'
         try:
-            current_filepath = os.path.join(dir_gom_results,save_filename)
+            current_filepath = os.path.join(udp.dir_results, save_filename)
             frame_df = pd.read_pickle(current_filepath)
             
             # add time stamp to frame to allow for sorting later
@@ -143,214 +73,248 @@ if load_multiple_frames:
 
 #%% ----- ADD FEATURES AND DEFINE KEY FRAME DATAFRAMES -----
 print('Load data for key frames and add features')
-if load_multiple_frames:
+if udp.load_multiple_frames:
     # add time independent features
-    data_df = add_features(data_df, img_scale, time_mapping, orientation)
+    data_df = add_features(data_df, udp.img_scale, time_mapping, udp.orientation)
     # separate frames of interest
-    mask_frame_df = data_df[data_df['frame'] == mask_frame]
-    first_frame_df = data_df[data_df['frame'] == frame_min]
-    first_frame_rel_df = data_df[data_df['frame'] == frame_rel_min]
-    last_frame_df = data_df[data_df['frame'] == frame_max]
-    frame_end_df = data_df[data_df['frame'] == end_frame]
+    mask_frame_df = data_df[data_df['frame'] == udp.mask_frame]
+    first_frame_df = data_df[data_df['frame'] == udp.frame_min]
+    first_frame_rel_df = data_df[data_df['frame'] == udp.frame_rel_min]
+    last_frame_df = data_df[data_df['frame'] == udp.frame_max]
+    frame_end_df = data_df[data_df['frame'] == udp.end_frame]
   
     # keep only points that appear in last frame
     data_all_df = return_points_in_all_frames(data_df, last_frame_df)
 
 else:
     # define frames of interest
-    mask_frame_df = return_frame_dataframe(mask_frame, dir_gom_results)
-    first_frame_df = return_frame_dataframe(frame_min, dir_gom_results)
-    first_frame_rel_df = return_frame_dataframe(frame_rel_min, dir_gom_results)
-    last_frame_df = return_frame_dataframe(frame_max, dir_gom_results)
-    frame_end_df = return_frame_dataframe(end_frame, dir_gom_results)
+    mask_frame_df = return_frame_dataframe(udp.mask_frame, udp.dir_results)
+    first_frame_df = return_frame_dataframe(udp.frame_min, udp.dir_results)
+    first_frame_rel_df = return_frame_dataframe(udp.frame_rel_min, udp.dir_results)
+    last_frame_df = return_frame_dataframe(udp.frame_max, udp.dir_results)
+    frame_end_df = return_frame_dataframe(udp.end_frame, udp.dir_results)
     
     # add time independent features
-    mask_frame_df = add_features(mask_frame_df, img_scale, time_mapping, orientation)
-    first_frame_df = add_features(first_frame_df, img_scale, time_mapping, orientation)
-    first_frame_rel_df = add_features(first_frame_rel_df, img_scale, time_mapping, orientation)
-    last_frame_df = add_features(last_frame_df, img_scale, time_mapping, orientation)
-    frame_end_df = add_features(frame_end_df, img_scale, time_mapping, orientation)
+    mask_frame_df = add_features(mask_frame_df, udp.img_scale, time_mapping, udp.orientation)
+    first_frame_df = add_features(first_frame_df, udp.img_scale, time_mapping, udp.orientation)
+    first_frame_rel_df = add_features(first_frame_rel_df, udp.img_scale, time_mapping, udp.orientation)
+    last_frame_df = add_features(last_frame_df, udp.img_scale, time_mapping, udp.orientation)
+    frame_end_df = add_features(frame_end_df, udp.img_scale, time_mapping, udp.orientation)
        
 #%% ----- EXPLORATORY DATA ANALYSIS -----
 # ----------------------------------------------------------------------------
-if 'global_stress_strain' in plots_to_generate and load_multiple_frames:
-    x_glob_ss = data_df.groupby('frame')[plot_vars['x']].mean()
-    y_glob_ss = data_df.groupby('frame')[plot_vars['y']].mean() 
+# ----- print list of plots that will be generated -----
+print('-----------------------------------------------')
+print('Plots to be generated:')
+for p in udp.plt_to_generate:
+    print(p)
+    
+print('-----------------------------------------------')
 
-if 'scatter_var_categories' in plots_to_generate:
-    # ----- initialize plot variables -----
-    y_var = 'Eyy'
-    x_var = 'time'
-    category_var = 'Eyy'
-    num_samples = 8000
-    num_categories = 6
+if 'global_stress_strain' in udp.plt_to_generate and udp.load_multiple_frames:
+    # import analysis parameters
+    anlys_ss = udp.anlys_params_glob_ss
+    
+    x_glob_ss = data_df.groupby('frame')[anlys_ss['plot_vars']['x']].mean()
+    y_glob_ss = data_df.groupby('frame')[anlys_ss['plot_vars']['y']].mean() 
+
+if 'var_clusters_vs_time_subplots' in udp.plt_to_generate:
+    # ----- initialize analysis variables -----
+    anlys_vcts = udp.anlys_params_var_clusters_subplots
     
     # calculate strain range bounds
-    max_category_band = round(mask_frame_df[category_var].quantile(0.98),2)
-    min_category_band = round(mask_frame_df[category_var].min(),2)
+    max_category_band = round(mask_frame_df[anlys_vcts['cat_var']].quantile(0.98),2)
+    min_category_band = round(mask_frame_df[anlys_vcts['cat_var']].min(),2)
     
     category_ranges = np.linspace(min_category_band, max_category_band, 
-                                  num_categories) 
+                                  anlys_vcts['num_categories']) 
 
     # find indices of points on sample belonging to each category
-    category_indices = find_points_in_categories(num_categories, category_ranges, 
-                                                 category_var, mask_frame_df)
-
-# ----------------------------------------------------------------------------
-# --- Plot cluster points overlaid on sample ---
-# ----------------------------------------------------------------------------
-if 'overlay_pts_on_sample_var' in plots_to_generate:
-    # ----- initialize plot vars -----
-    num_categories = 6
-    category_var = 'Eyy'
-    # compute aspect ratio of sample to set figure size
-    width = first_frame_df['x_mm'].max() - first_frame_df['x_mm'].min()
-    height = first_frame_df['y_mm'].max() - first_frame_df['y_mm'].min()
-    axis_buffer = 1
-    fig_width = 2.5
-    fig_height = height*axis_buffer/width*fig_width  
+    category_indices = find_points_in_categories(anlys_vcts['num_categories'], 
+                                                 category_ranges, 
+                                                 anlys_vcts['cat_var'], 
+                                                 mask_frame_df
+                                                 )
     
-    plot_params_7 = {'figsize': (fig_width,fig_height),
-           'xlabel': 'x (mm)',
-           'ylabel': 'y (mm)',
-           'ref_c': '#D0D3D4',
-           'ref_ec': '#D0D3D4',
-           'ref_alpha': 0.3,
-           'cluster_alpha': 1.0,
-           'tight_layout': False,
-           'axes_scaled': True,
-           'grid_alpha': 0.5,
-           'm_size': 2,
-           'm_legend_size': 7,
-           'm_alpha': 0.4,
-           'fontsize': 5,
-           'linewidth': 0,
-           'linestyle': '-',
-           'xlims': [0.95*round(first_frame_df['x_mm'].min(),1),
-                     1.05*round(first_frame_df['x_mm'].max(),1)],
-           'ylims': [0.95*round(first_frame_df['y_mm'].min(),1),
-                     1.05*round(first_frame_df['y_mm'].max(),1)],
-           }
+    # add categories to analysis parameters dictionary
+    anlys_vcts['category_indices'] = category_indices
+    anlys_vcts['category_ranges'] = category_ranges
     
-    # calculate variable magnitude range bounds
-    max_category_band = round(mask_frame_df[category_var].quantile(0.85),2)
-    min_category_band = round(mask_frame_df[category_var].min(),2)
+if 'compressibility_check' in udp.plt_to_generate:
+    # ----- initialize analysis variables -----
+    anlys_cc = udp.anlys_params_comp_check
+    
+    # calculate strain range bounds
+    max_category_band = round(mask_frame_df[anlys_cc['cat_var']].quantile(0.98),2)
+    min_category_band = round(mask_frame_df[anlys_cc['cat_var']].min(),2)
     
     category_ranges = np.linspace(min_category_band, max_category_band, 
-                                  num_categories)
-    
+                                  anlys_cc['num_categories']) 
+
     # find indices of points on sample belonging to each category
-    category_indices = find_points_in_categories(num_categories, category_ranges, 
-                                  category_var, mask_frame_df)
+    category_indices = find_points_in_categories(anlys_cc['num_categories'], 
+                                                 category_ranges, 
+                                                 anlys_cc['cat_var'], 
+                                                 mask_frame_df
+                                                 )
     
-    print('Plotting: overlay_pts_on_sample_var')
+    # add categories to analysis parameters dictionary
+    anlys_cc['category_indices'] = category_indices
+    anlys_cc['category_ranges'] = category_ranges
     
-    # ----- create figure -----
-    fig7 = plt.figure(figsize = plot_params_5['figsize'])
-    ax7 = fig7.add_subplot(1,1,1)
+if 'overlay_pts_on_sample_var' in udp.plt_to_generate:
+    # ----- initialize analysis variables -----
+    anlys_opsv = udp.anlys_params_pts_overlay_var
     
-    overlay_pts_on_sample(plot_params_7, first_frame_df, mask_frame_df, 
-                          num_categories, category_indices, category_ranges,  
-                          img_scale, c, ax7) 
+    # calculate strain range bounds
+    max_category_band = round(mask_frame_df[anlys_opsv['cat_var']].quantile(0.98),2)
+    min_category_band = round(mask_frame_df[anlys_opsv['cat_var']].min(),2)
     
-if 'overlay_pts_on_sample_relative' in plots_to_generate:
-    # ----- initialize plot vars -----
-    num_categories = 2
-    var_interest = 'Eyy'
-    category_var = 'dEyy/dt'
-    # compute aspect ratio of sample to set figure size
-    width = first_frame_df['x_mm'].max() - first_frame_df['x_mm'].min()
-    height = first_frame_df['y_mm'].max() - first_frame_df['y_mm'].min()
-    axis_buffer = 1
-    fig_width = 2.5
-    fig_height = height*axis_buffer/width*fig_width
+    category_ranges = np.linspace(min_category_band, max_category_band, 
+                                  anlys_opsv['num_categories']) 
+
+    # find indices of points on sample belonging to each category
+    category_indices = find_points_in_categories(anlys_opsv['num_categories'], 
+                                                 category_ranges, 
+                                                 anlys_opsv['cat_var'], 
+                                                 mask_frame_df
+                                                 )
     
-    # define plot parameters dictionary
-    plot_params_8 = {'figsize': (fig_width,fig_height),
-               'xlabel': 'x (mm)',
-               'ylabel': 'y (mm)',
-               'ref_c': '#D0D3D4',
-               'ref_ec': '#D0D3D4',
-               'ref_alpha': 0.3,
-               'cluster_alpha': 1.0,
-               'tight_layout': False,
-               'axes_scaled': True,
-               'grid_alpha': 0.5,
-               'm_size': 2,
-               'm_legend_size': 7,
-               'm_alpha': 0.4,
-               'fontsize': 5,
-               'linewidth': 0,
-               'linestyle': '-',
-               'xlims': [0.95*round(first_frame_df['x_mm'].min(),1),
-                         1.05*round(first_frame_df['x_mm'].max(),1)],
-               'ylims': [0.95*round(first_frame_df['y_mm'].min(),1),
-                         1.05*round(first_frame_df['y_mm'].max(),1)],
-               }
+    # add categories to analysis parameters dictionary
+    anlys_opsv['category_indices'] = category_indices
+    anlys_opsv['category_ranges'] = category_ranges
+    
+if 'overlay_pts_on_sample_relative' in udp.plt_to_generate:
+    # ----- initialize analysis variables -----
+    anlys_opsr = udp.anlys_params_pts_overlay_relative
+    # define series representing change in category var between frames    
+    category_ranges = [-np.inf, 0]
+        
+    diff_df = pd.DataFrame()
+    
+    diff_df[anlys_opsr['cat_var']] = last_frame_df[anlys_opsr['var_interest']] - first_frame_rel_df[anlys_opsr['var_interest']]
+            
+    category_indices = find_points_in_categories(anlys_opsr['num_categories'],
+                                                 category_ranges, 
+                                                 anlys_opsr['cat_var'],
+                                                 diff_df)
+    
+    # add categories to analysis parameters dictionary
+    anlys_opsr['category_indices'] = category_indices
+    anlys_opsr['category_ranges'] = category_ranges
+    
+if 'var_vs_time_clusters_same_axis' in udp.plt_to_generate:
+    # ----- initialize analysis variables -----
+    anlys_vtcsa = udp.anlys_params_var_vs_time_clusters_sa
     
     # define series representing change in category var between frames    
     category_ranges = [-np.inf, 0]
         
     diff_df = pd.DataFrame()
     
-    diff_df[category_var] = last_frame_df[var_interest] - first_frame_rel_df[var_interest]
+    diff_df[anlys_vtcsa['cat_var']] = last_frame_df[anlys_vtcsa['y_var']] - first_frame_rel_df[anlys_vtcsa['y_var']]
             
-    category_indices = find_points_in_categories(num_categories, category_ranges, 
-                                  category_var, diff_df)
+    category_indices = find_points_in_categories(anlys_vtcsa['num_categories'],
+                                                 category_ranges, 
+                                                 anlys_vtcsa['cat_var'],
+                                                 diff_df)
     
-    print('Plotting: overlay_pts_on_sample_relative')
+    # add categories to analysis parameters dictionary
+    anlys_vtcsa['category_indices'] = category_indices
+    anlys_vtcsa['category_ranges'] = category_ranges
+    
+    
+if 'norm_stress_strain_rates_vs_time' in udp.plt_to_generate:
+    # ----- initialize analysis variables -----
+    anlys_nssrt = udp.anlys_params_norm_ss_rates_vs_time
+    
+    # define series representing change in category var between frames    
+    category_ranges = [-np.inf, 0]
+        
+    diff_df = pd.DataFrame()
+    
+    diff_df[anlys_nssrt['cat_var']] = last_frame_df[anlys_nssrt['y_var']] - first_frame_rel_df[anlys_nssrt['y_var']]
+            
+    category_indices = find_points_in_categories(anlys_nssrt['num_categories'],
+                                                 category_ranges, 
+                                                 anlys_nssrt['cat_var'],
+                                                 diff_df)
+    
+    # add categories to analysis parameters dictionary
+    anlys_nssrt['category_indices'] = category_indices
+    anlys_nssrt['category_ranges'] = category_ranges
+    
+# ----------------------------------------------------------------------------
+# --- Plot cluster points overlaid on sample ---
+# ----------------------------------------------------------------------------
+if 'overlay_pts_on_sample_var' in udp.plt_to_generate:
+    # ----- initialize plot vars -----
+    plt_opsv = udp.plt_params_pts_overlay_var
+    
+    # update plot parameters dictionary with plot limits
+    plt_opsv['xlims'] = [0.95*round(first_frame_df['x_mm'].min(),1),
+                     1.05*round(first_frame_df['x_mm'].max(),1)]
+    plt_opsv['ylims'] = [0.95*round(first_frame_df['y_mm'].min(),1),
+                     1.05*round(first_frame_df['y_mm'].max(),1)]
+           
     # ----- create figure -----
-    fig8 = plt.figure(figsize = plot_params_5['figsize'])
-    ax8 = fig8.add_subplot(1,1,1)
+    fig_opsv = plt.figure(figsize = plt_opsv['figsize'])
+    ax_opsv = fig_opsv.add_subplot(1,1,1)
     
-    overlay_pts_on_sample(plot_params_8, first_frame_df, mask_frame_df, 
-                      num_categories, category_indices, category_ranges,  
-                      img_scale, c2, ax8) 
-      
+    overlay_pts_on_sample(plt_opsv, first_frame_df, mask_frame_df, 
+                          anlys_opsv, udp.img_scale, ax_opsv) 
+    
+if 'overlay_pts_on_sample_relative' in udp.plt_to_generate:
+    # ----- initialize plot vars -----
+    plt_opsr = udp.plt_params_pts_overlay_relative
+    
+    # update plot parameters dictionary with plot limits
+    plt_opsr['xlims'] = [0.95*round(first_frame_df['x_mm'].min(),1),
+                         1.05*round(first_frame_df['x_mm'].max(),1)]
+    plt_opsr['ylims'] = [0.95*round(first_frame_df['y_mm'].min(),1),
+                         1.05*round(first_frame_df['y_mm'].max(),1)]
+    
+    # ----- create figure -----
+    fig_opsr = plt.figure(figsize = plt_opsr['figsize'])
+    ax_opsr = fig_opsr.add_subplot(1,1,1)
+    
+    overlay_pts_on_sample(plt_opsr, first_frame_df, mask_frame_df, 
+                          anlys_opsr, udp.img_scale, ax_opsr) 
+    
+#%%      
 # ----------------------------------------------------------------------------
 # ---------- Plot figures requiring iteration through time ----------
 # ----------------------------------------------------------------------------
-for i in range(plot_frame_range[0],plot_frame_range[1]+1):
+for i in range(udp.plt_frame_range[0],udp.plt_frame_range[1]+1):
     print('Processing frame: '+ str(i)+ ' ...')
     # ---------- load data for current frame ----------
-    if load_multiple_frames: 
+    if udp.load_multiple_frames: 
         frame_df = data_df[data_df['frame'] == i]
     else:
-        frame_df = return_frame_dataframe(i, dir_gom_results)
-        frame_df = add_features(frame_df, img_scale, time_mapping, 
-                                orientation)
+        frame_df = return_frame_dataframe(i, udp.dir_results)
+        frame_df = add_features(frame_df, udp.img_scale, time_mapping, 
+                                udp.orientation)
     # ------------------------------------------------------------------------
     # ----- plot histogram for each frame -----
     # ------------------------------------------------------------------------
-    if 'histogram' in plots_to_generate:
-        print('Plotting: histogram')
-        # ----- initialize plot vars -----
-        subplot_cols = 3
-        subplot_dims = [int(np.floor((frame_range-1)/subplot_cols)+1), subplot_cols]
-        plot_var = 'Eyy'
+    if 'histogram' in udp.plt_to_generate:
+        plt_hist = udp.plt_params_histogram
+        anlys_hist = udp.anlys_params_histogram
         
-        # compile plot params in dictionary
-        plot_params_1 = {'n_bins': 20, 
-                       'xlims': [1.05*last_frame_df[plot_var].min(),
-                                 1.05*last_frame_df[plot_var].max()],
-                       'ylabel': plot_var,
-                       'grid_alpha': 0.5,
-                       'fontsize': 5,
-                       'annot_linestyle': '--',
-                       'linewidth': 0.4,
-                       'annot_linewidth': 0.4,
-                       'annot_fontsize': 4
-                       }
+        # update plot parameters dictionary with plot limits
+        plt_hist['xlims'] = [1.05*last_frame_df[anlys_hist['plot_var']].min(),
+                             1.05*last_frame_df[anlys_hist['plot_var']].max()]
         
-        if i == plot_frame_range[0]:
+        if i == udp.plt_frame_range[0]:
             # initialize row and column index counters
             plot_num = 0
             # ----- create figure -----
-            fig1, axs1 = plt.subplots(subplot_dims[0], subplot_dims[1], 
-                                    sharey=True, tight_layout=True)
+            fig_h, axs_h = plt.subplots(plt_hist['subplot_dims'][0], 
+                                      plt_hist['subplot_dims'][1], 
+                                      sharey=True)
         
-        generate_histogram(frame_df, subplot_dims, plot_var, plot_params_1, 
-                       plot_frame_range, plot_num, i, axs1, ec, c)
+        histogram_vs_frame(frame_df, anlys_hist, plt_hist, udp.plt_frame_range,
+                           plot_num, i, axs_h)
 
         plot_num += 1
     
@@ -358,263 +322,105 @@ for i in range(plot_frame_range[0],plot_frame_range[1]+1):
     # ----- Generate Box Plots -----
     # ------------------------------------------------------------------------
     # compile plot params in dictionary
-    if 'boxplot' in plots_to_generate:
-        print('Plotting: boxplot')
+    if 'boxplot' in udp.plt_to_generate:
         
-        # ----- initialize plot vars -----
+        # ----- import/initialize plot vars -----
         mpl.rcParams['lines.marker'] = ''
         
-        # compile plot params in dictionary
-        plot_var = 'Eyy'
-        plot_params_2 = {'figsize': (4,2), 
-                       'xlims': [0, frame_max+1],
-                       'xlabel': 'Frame number',
-                       'ylabel': plot_var,
-                       'linewidth': 0.5,
-                       'grid_alpha': 0.5,
-                       'fontsize': 8,
-                       'showfliers': False
-                       }
-        
-        plot_vars = {'x': 'time',
-                     'y': 'stress_mpa'}
+        plt_bp = udp.plt_params_boxplot
+        anlys_bp = udp.anlys_params_boxplot
 
         # ----- create figure -----
-        if i == plot_frame_range[0]:
-            fig2 = plt.figure(figsize = plot_params['figsize'])
-            ax2 = fig2.add_subplot(1,1,1)
+        if i == udp.plt_frame_range[0]:
+            fig_bp = plt.figure(figsize = plt_bp['figsize'])
+            ax_bp = fig_bp.add_subplot(1,1,1)
 
-        generate_boxplot_vs_frame(frame_df, plot_var, plot_params_2, 
-                                  plot_frame_range, i, ax2)
+        boxplot_vs_frame(frame_df, anlys_bp, plt_bp, udp.plt_frame_range, i, ax_bp)
         
     # ------------------------------------------------------------------------
     # ----- store data for plotting global variables -----
     # ------------------------------------------------------------------------    
-    if 'global_stress_strain' in plots_to_generate and not load_multiple_frames:
-        if i == plot_frame_range[0]:       
+    if 'global_stress_strain' in udp.plt_to_generate and not udp.load_multiple_frames:
+        if i == udp.plt_frame_range[0]:       
             x_glob_ss = []
             y_glob_ss = []
             
-        x_glob_ss.append(frame_df[plot_vars['x']].mean())
-        y_glob_ss.append(frame_df[plot_vars['y']].mean())
+            anlys_ss = udp.anlys_params_glob_ss
+            
+        x_glob_ss.append(frame_df[anlys_ss['x']].mean())
+        y_glob_ss.append(frame_df[anlys_ss['y']].mean())
     
     # ------------------------------------------------------------------------
-    # --- Plot classes of data vs frame based on value in a specified frame ---
+    # --- Plot clusters of data vs frame based on value in a specified frame ---
     # ------------------------------------------------------------------------
-    if 'scatter_var_categories' in plots_to_generate:
-        print('Plotting: scatter_var_categories')
-        # ----- initialize plot vars -----
-
+    if 'var_clusters_vs_time_subplots' in udp.plt_to_generate:
+        # ----- import/initialize plot properties -----
+        plt_vcts = udp.plt_params_var_clusters_subplots
         
-        # define analysis parameters dictionary
-        analysis_params_3 = {'x_var': x_var,
-                           'y_var': y_var,
-                           'cat_var': category_var,
-                           'samples': num_samples,
-                           'mask_frame': mask_frame}
-        
-        # define plot parameters dictionary
-        plot_params_3 = {'figsize': (5,4),
-                   'xlabel': 'Time (s)',
-                   'ylabel': 'Eng. Stress (MPa)',
-                   'tight_layout': True,
-                   'grid_alpha': 0.5,
-                   'm_size': 2,
-                   'm_alpha': 0.4,
-                   'fontsize': 5,
-                   'linewidth': 0.5,
-                   'annot_linestyle': '--',
-                   'linestyle': '-',
-                   'xlims': [1.05*round(first_frame_df[x_var].min(),1),
-                             1.1*round(last_frame_df[x_var].max(),1)],
-                   'ylims': [1.05*round(first_frame_df[y_var].min(),1),
-                             1.05*round(last_frame_df[y_var].max(),1)],
-                   'log_x': True
-                   }
-        
-        # compute sub-plot dimensions
-        subplot_cols = 3
-        subplot_dims = [int(np.floor((num_categories-1)/subplot_cols)+1), 
-                        subplot_cols
-                        ]
+        # update plot parameters dictionary with plot limits
+        plt_vcts['xlims'] = [1.05*round(first_frame_df[anlys_vcts['x_var']].min(),1),
+                             1.1*round(last_frame_df[anlys_vcts['x_var']].max(),1)]
+        plt_vcts['ylims'] = [1.05*round(first_frame_df[anlys_vcts['y_var']].min(),1),
+                             1.05*round(last_frame_df[anlys_vcts['y_var']].max(),1)]
         
         # create figure and initialize arrays for field average data
-        if i == plot_frame_range[0]:
+        if i == udp.plt_frame_range[0]:
             field_avg_var = []
             field_avg_x = []
             
             # ----- create figure -----
-            fig3, ax3 = plt.subplots(subplot_dims[0], subplot_dims[1], 
-                            figsize=plot_params['figsize'], sharey=True)
+            fig_vcts, ax_vcts = plt.subplots(plt_vcts['subplot_dims'][0], 
+                                     plt_vcts['subplot_dims'][1], 
+                                     figsize = plt_vcts['figsize'], 
+                                     sharey=True)
         
         # collect field average quantities for comparison
-        field_avg_var.append(frame_df[analysis_params['y_var']].mean())
-        field_avg_x.append(frame_df[analysis_params['x_var']].mean())
+        field_avg_var.append(frame_df[anlys_vcts['y_var']].mean())
+        field_avg_x.append(frame_df[anlys_vcts['x_var']].mean())
                 
-        plot_var_classes_over_time(frame_df, subplot_dims, analysis_params_3, 
-                               plot_params_3, num_categories, category_indices, 
-                               category_ranges, plot_frame_range,
-                               time_mapping, field_avg_var, field_avg_x, i, 
-                               ax3, ec, c)
+        var_clusters_vs_time_subplots(frame_df, anlys_vcts, plt_vcts, 
+                                      udp.plt_frame_range, time_mapping, 
+                                      field_avg_var, field_avg_x, i, ax_vcts)
         
-    if 'compressibility_check' in plots_to_generate:
+    if 'compressibility_check' in udp.plt_to_generate:
         # ----- initialize plot vars -----
-        num_categories = 6
-        category_var = 'Eyy'
-        y_var = 'Exx'
-        x_var = 'Eyy'
+        plt_cc = udp.plt_params_comp_check
+                
+        # update plot parameters dictionary with plot limits
+        plt_cc['xlims'] = [1.2*round(first_frame_df[anlys_cc['x_var']].min(),1),
+                           1.2*round(last_frame_df[anlys_cc['x_var']].quantile(0.995),2)]
+        plt_cc['ylims'] = [1.2*round(first_frame_df[anlys_cc['y_var']].quantile(0.995),2),
+                           1.2*round(last_frame_df[anlys_cc['y_var']].quantile(0.001),2)]
         
-        x_fit = np.linspace(0,3,500) # Eyy
-        y_fit_1 = 0.5*(1/(2*x_fit+1) - 1)
-        y_fit_2 = 0.5*(1/np.sqrt(1+2*x_fit) - 1)
-        
-        # define analysis parameters dictionary
-        analysis_params_4 = {'x_var': x_var,
-                           'y_var': y_var,
-                           'cat_var': category_var,
-                           'samples': num_samples,
-                           'x_fit': x_fit,
-                           'y_fit_1': y_fit_1,
-                           'y_fit_2': y_fit_2
-                           }
-        
-        # define plot parameters dictionary
-        plot_params_4 = {'figsize': (3,3),
-                   'xlabel': y_var,
-                   'ylabel': x_var,
-                   'y_fit_1_label': '$\lambda_x = \lambda_y^{-1}$',
-                   'y_fit_2_label': '$\lambda_x = \lambda_y^{-1/2}$',
-                   'cluster_alpha': 0.5,
-                   'tight_layout': False,
-                   'grid_alpha': 0.5,
-                   'm_size': 4,
-                   'm_legend_size': 7,
-                   'm_alpha': 0.5,
-                   'fontsize': 5,
-                   'legend_fontsize': 4,
-                   'linewidth': 0.8,
-                   'linestyle1': '--',
-                   'linestyle2': '-',
-                   'xlims': [1.2*round(first_frame_df[x_var].min(),1),
-                             1.2*round(last_frame_df[x_var].quantile(0.995),2)],
-                   'ylims': [1.2*round(first_frame_df[y_var].quantile(0.995),2),
-                             1.2*round(last_frame_df[y_var].quantile(0.001),2)]
-                   }
-        
-        # calculate variable magnitude range bounds
-        max_category_band = round(mask_frame_df[category_var].quantile(0.85),2)
-        min_category_band = round(mask_frame_df[category_var].min(),2)
-        
-        category_ranges = np.linspace(min_category_band, max_category_band, 
-                                      num_categories)
-        
-        # find indices of points on sample belonging to each category
-        category_indices = find_points_in_categories(num_categories, 
-                                                     category_ranges, 
-                                                     category_var, 
-                                                     mask_frame_df)
-        
-        print('Plotting: compressibility_check')
         # ----- create figure -----
-        if i == plot_frame_range[0]:
-            fig4 = plt.figure(figsize = plot_params_5['figsize'])
-            ax4 = fig4.add_subplot(1,1,1)
+        if i == udp.plt_frame_range[0]:
+            fig_cc = plt.figure(figsize = plt_cc['figsize'])
+            ax_cc = fig_cc.add_subplot(1,1,1)
         
-        plot_compressibility_check_clusters(frame_df, analysis_params_4, 
-                                            plot_params_4, num_categories, 
-                                            category_indices, plot_frame_range,
-                                            i, ax7, c, ec)
+        compressibility_check_clusters(frame_df, anlys_cc, plt_cc, 
+                                       udp.plt_frame_range, i, ax_cc)
         
-    if 'plot_var_vs_time_clusters' in plots_to_generate:
+    if 'var_vs_time_clusters_same_axis' in udp.plt_to_generate:
         # ----- initialize plot vars -----
-        num_categories = 2
-        x_var = 'time'
-        y_var = 'Eyy'
-        category_var = 'dEyy/dt'
+        plt_vtcsa = udp.plt_params_var_vs_time_clusters_sa
         
-        # define analysis parameters dictionary
-        analysis_params_5 = {'x_var': x_var,
-                           'y_var': y_var,
-                           'cat_var': category_var,
-                           'samples': num_samples,
-                           }
-        
-        # define plot parameters dictionary
-        plot_params_5 = {'figsize': (3,3),
-                   'xlabel': y_var,
-                   'ylabel': x_var,
-                   'labels': [category_var+' < 0', category_var+ ' >= 0'],
-                   'cluster_alpha': 0.5,
-                   'tight_layout': False,
-                   'grid_alpha': 0.5,
-                   'm_size': 4,
-                   'm_legend_size': 7,
-                   'm_alpha': 1,
-                   'fontsize': 5,
-                   'legend_fontsize': 4,
-                   'linewidth': 0.8,
-                   'linestyle1': '--',
-                   'linestyle2': '-',
-                   'xlims': [1.2*round(first_frame_df[x_var].min(),1),
-                             1.2*round(last_frame_df[x_var].quantile(0.995),2)],
-                   'ylims': [1.2*round(first_frame_df[y_var].quantile(0.995),2),
-                             1.2*round(last_frame_df[y_var].quantile(0.001),2)],
-                   'log_x': True
-                   }
+        # update plot parameters dictionary with plot limits
+        plt_vtcsa['xlims'] = [1.2*round(first_frame_df[anlys_vtcsa['x_var']].min(),1),
+                             1.2*round(last_frame_df[anlys_vtcsa['x_var']].quantile(0.995),2)]
+        plt_vtcsa['ylims'] = [1.2*round(first_frame_df[anlys_vtcsa['y_var']].quantile(0.995),2),
+                             1.2*round(last_frame_df[anlys_vtcsa['y_var']].quantile(0.001),2)]
     
-        # define series representing change in category var between frames    
-        category_ranges = [-np.inf, 0]
-            
-        diff_df = pd.DataFrame()
-        
-        diff_df[category_var] = last_frame_df[y_var] - first_frame_rel_df[y_var]
-                
-        category_indices = find_points_in_categories(num_categories, category_ranges, 
-                                      category_var, diff_df)
-    
-        category_df = first_frame_df[first_frame_df.index.isin(category_indices[0].values)]
-        
-        print('Plotting: plot_var_vs_time_clusters')
         # ----- create figure -----
-        if i == plot_frame_range[0]:
-            fig5 = plt.figure(figsize = plot_params_9['figsize'])
-            ax5 = fig5.add_subplot(1,1,1)
+        if i == udp.plt_frame_range[0]:
+            fig_vtcsa = plt.figure(figsize = plt_vtcsa['figsize'])
+            ax_vtcsa = fig_vtcsa.add_subplot(1,1,1)
             
-        plot_var_vs_time_clusters(frame_df, analysis_params_5, plot_params_5, 
-                                  num_categories, category_indices, 
-                                  plot_frame_range, i, ax9, ec2, c2)
+        var_vs_time_clusters_same_axis(frame_df, anlys_vtcsa, plt_vtcsa,  
+                                  udp.plt_frame_range, i, ax_vtcsa)
         
-    if 'plot_norm_stress_strain_rates_vs_time' in plots_to_generate:
-        # ----- initialize plot vars -----
-        num_categories = 2
-        x_var = 'time'
-        y_var = 'Eyy'
-        y_var_2 = 'stress_mpa'
-        category_var = 'Eyy'
-        
-        # define analysis parameters dictionary
-        analysis_params_6 = {'x_var': x_var,
-                           'y_var': y_var,
-                           'y_var_2': y_var_2,
-                           'cat_var': category_var,
-                           'normalize_y': False,
-                           'peak_frame_index': 2
-                           }
-        
-        # define series representing change in category var between frames    
-        category_ranges = [-np.inf, 0]
-            
-        diff_df = pd.DataFrame()
-        
-        diff_df[category_var] = last_frame_df[y_var] - first_frame_rel_df[y_var]
-                
-        category_indices = find_points_in_categories(num_categories, category_ranges, 
-                                      category_var, diff_df)
-    
-        category_df = first_frame_df[first_frame_df.index.isin(category_indices[0].values)]
-        
+    if 'norm_stress_strain_rates_vs_time' in udp.plt_to_generate:        
         # assign placeholder objects to store data from all frames
-        if i == plot_frame_range[0]:
+        if i == udp.plt_frame_range[0]:
             category_series = {}
             category_series['y1_0'] = []
             category_series['y1_1'] = []
@@ -626,94 +432,61 @@ for i in range(plot_frame_range[0],plot_frame_range[1]+1):
             time_ = []
             for key in time_mapping.keys():
                 time_.append(time_mapping[key])
-            dt = np.diff(time_)[plot_frame_range[0]:plot_frame_range[1]+1]
+            dt = np.diff(time_[udp.plt_frame_range[0]:udp.plt_frame_range[1]+1])
+            anlys_nssrt['dt'] = dt
         
         # ----- compile data for each cluster and each frame -----           
-        for j in range(0, num_categories):
-            category_df = frame_df[frame_df.index.isin(category_indices[j].values)]
+        for j in range(0, anlys_nssrt['num_categories']):
+            category_df = frame_df[frame_df.index.isin(anlys_nssrt['category_indices'][j].values)]
             if j == 0:
                 #extract mean of x variable only once per frame
                 x = category_df.groupby(
-                analysis_params['x_var'])[analysis_params['x_var']].mean()
+                anlys_nssrt['x_var'])[anlys_nssrt['x_var']].mean()
                 x_series.append(x.values[0])
             
             # extract mean of all points in cluster
             y = category_df.groupby(
-                analysis_params['x_var'])[analysis_params['y_var']].mean()
+                anlys_nssrt['x_var'])[anlys_nssrt['y_var']].mean()
             y2 = category_df.groupby(
-                analysis_params['x_var'])[analysis_params['y_var_2']].mean()
+                anlys_nssrt['x_var'])[anlys_nssrt['y_var_2']].mean()
             
             # append to list
-            category_series['y1_'+str(j)].append(y.values[0]/dt[i-1])
-            category_series['y2_'+str(j)].append(y2.values[0]/dt[i-1])
+            category_series['y1_'+str(j)].append(y.values[0])
+            category_series['y2_'+str(j)].append(y2.values[0])
                     
 plt.tight_layout()       
 plt.show()
-#%%
+
 # ----------------------------------------------------------------------------
 # ----- plot figures that don't require iteratively loading -----
 # ----------------------------------------------------------------------------
-if 'global_stress_strain' in plots_to_generate:
-    print('Plotting: global_stress_strain')
-    # ----- initialize plot vars -----
-    plot_params_7 = {'figsize': (4,2),
-               'm_size': 2,
-               'linewidth': 0.5,
-               'xlabel': 'Time (s)',
-               'ylabel': 'Eng. Stress (MPa)',
-               'tight_layout': True,
-               'grid_alpha': 0.5,
-               'fontsize': 8,
-               'log_x': True}
+if 'global_stress_strain' in udp.plt_to_generate:
+    # ----- import/initialize parameters -----
+    plt_ss = udp.plt_params_glob_ss
        
     # ----- create figure -----
-    fig7 = plt.figure(figsize = plot_params['figsize'])
+    fig7 = plt.figure(figsize = plt_ss['figsize'])
     ax7 = fig7.add_subplot(1,1,1)
     
-    create_simple_scatter(x_glob_ss, y_glob_ss, plot_params_7, plot_frame_range, 
-                          ec, c, ax7)
+    create_simple_scatter(x_glob_ss, y_glob_ss, plt_ss, udp.plt_frame_range, ax7)
 
-if 'plot_norm_stress_strain_rates_vs_time' in plots_to_generate:
-    num_categories = 2
-    x_var = 'time'
-    y_var = 'Eyy'
-    y_var_2 = 'stress_mpa'
-    category_var = 'Eyy'
-    
-    print('Plotting: plot_norm_stress_strain_rates_vs_time')
+if 'norm_stress_strain_rates_vs_time' in udp.plt_to_generate:
+    # ----- initialize plot vars -----
+    plt_nssrt = udp.plt_params_norm_ss_rates_vs_time
+       
     # ----- initialize plot vars -----
     # define plot parameters dictionary
-    plot_params_6 = {'figsize': (3,3),
-               'xlabel': x_var,
-               'ylabel': 'norm(dX/dt)',
-               'labels_y1': [y_var+' < 0', y_var+ ' >= 0'],
-               'labels_y2': [y_var_2+' < 0', y_var_2+ ' >= 0'],
-               'cluster_alpha': 0.5,
-               'tight_layout': False,
-               'grid_alpha': 0.5,
-               'marker1': 'o',
-               'marker2': '^',
-               'm_size': 12,
-               'm_legend_size': 7,
-               'm_alpha': 1,
-               'fontsize': 5,
-               'legend_fontsize': 4,
-               'linewidth': 0.5,
-               'linestyle1': '--',
-               'linestyle2': '-',
-               'xlims': [1.2*round(first_frame_df[x_var].min(),1),
-                         1.2*round(last_frame_df[x_var].quantile(0.995),2)],
-               'ylims': [0.00001,
-                         1],
-               'log_x': True,
-               'log_y': True
-               }
+    plt_nssrt['xlims'] = [1.2*round(first_frame_df[anlys_nssrt['x_var']].min(),1),
+                         1.2*round(last_frame_df[anlys_nssrt['x_var']].quantile(0.995),2)]
+    plt_nssrt['ylims'] = [0.0001, 1.05]
+    
+    # add plot variables to analysis_params dictionary
+    anlys_nssrt['x_series'] = x_series
+    anlys_nssrt['category_series'] = category_series
     
     # ----- create figure -----
-    fig6 = plt.figure(figsize = plot_params_10['figsize'])
-    ax6 = fig6.add_subplot(1,1,1)
+    fig_nssrt = plt.figure(figsize = plt_nssrt['figsize'])
+    ax_nssrt = fig_nssrt.add_subplot(1,1,1)
 
-    plot_norm_stress_strain_rates_vs_time(analysis_params_6, plot_params_6, 
-                                          num_categories, category_series, 
-                                          x_series, dt, plot_frame_range, i, 
-                                          ax6, ec2, c2)    
+    norm_stress_strain_rates_vs_time(anlys_nssrt, plt_nssrt,
+                                     udp.plt_frame_range, i, ax_nssrt)

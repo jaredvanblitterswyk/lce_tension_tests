@@ -6,6 +6,9 @@
 # archive folder
 archive/
 
+#misc testing functions folder
+misc_test/
+
 # C extensions
 *.so
 
