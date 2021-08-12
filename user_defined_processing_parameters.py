@@ -17,6 +17,7 @@ batch_ext = 'lcei_003'
 mts_ext = 'mts_data'
 sample_ext = '001_t03_r0X'
 gom_ext = 'gom_results'
+frame_map_ext = 'frame_time_mapping'
 
 # ---------- Columns and data types of mts data ---------- 
 mts_columns = ['time', 'crosshead', 'load', 'trigger', 
@@ -29,14 +30,14 @@ mts_col_dtypes = {'time':'float', 'crosshead':'float', 'load':'float',
 # ----------------------------------------------------------------------------
 load_multiple_frames = False # True if one wants to load all frames into memory simultaneously
 orientation = 'vertical' # Orientation of pulling axis w.r.t camera
-frame_max = 33 # max frame to consider
-frame_min = 1 # min frame to plot
-frame_rel_min = 30 # start frame for computing relative change between frames
-end_frame = 33 # manually define last frame of test/where all points still in FOV
-mask_frame = 5 # frame to use to mask points for clustering
+frame_max = 160 # max frame to consider
+frame_min = 136 # min frame to plot
+frame_rel_min = 158 # start frame for computing relative change between frames
+end_frame = 160 # manually define last frame of test/where all points still in FOV
+mask_frame = 143 # frame to use to mask points for clustering
 peak_frame_index = 2 # frame where load is max for normalizing stress/strain relax rates
 frame_range = frame_max - frame_min
-post_mask_frame = 25 # frame to compare to mask to determine if strain inc/dec
+post_mask_frame = 158 # frame to compare to mask to determine if strain inc/dec
 img_scale = 0.01568 # image scale (mm/pix)
 # ----------------------------------------------------------------------------
 # -------- Plotting ---------
@@ -44,36 +45,22 @@ img_scale = 0.01568 # image scale (mm/pix)
 # -------- Specify which plots to generate ----------
 # NOTE: 'all plot options' only for reference and not called in main script
 plt_to_generate = [
-                   'boxplot',
-                   'histogram',
                    'global_stress_strain',
                    'var_clusters_vs_time_subplots',
-                   'overlay_pts_on_sample_var',
-                   'overlay_pts_on_sample_relative',
-                   'compressibility_check',
-                   'var_vs_time_clusters',
                    'norm_stress_strain_rates_vs_time',
-                   'boxplot',
-                   'histogram',
-                   'global_stress_strain',
-                   'var_clusters_vs_time_subplots',
-                   'compressibility_check',
+                   'var_vs_time_clusters_same_axis'
                    ]
 
-all_plot_options = ['boxplot',
+all_plot_options = [
+                    'boxplot',
                    'histogram',
                    'global_stress_strain',
                    'var_clusters_vs_time_subplots',
                    'overlay_pts_on_sample_var',
                    'overlay_pts_on_sample_relative',
                    'compressibility_check',
-                   'var_vs_time_clusters',
                    'norm_stress_strain_rates_vs_time',
-                   'boxplot',
-                   'histogram',
-                   'global_stress_strain',
-                   'var_clusters_vs_time_subplots',
-                   'compressibility_check',
+                   'var_vs_time_clusters_same_axis'
                    ]
 
 # ----- Set general plot parameters imported to all plot functions -----
@@ -156,7 +143,7 @@ plt_params_glob_ss = {
                     'ylabel': 'Eng. Stress (MPa)',
                     'ec': ec1,
                     'c': c1,
-                    'label': 'lcei_003_001_t03_r01',
+                    'label': 'lcei_003_001_t03_r04',
                     'legend_loc': 'upper right'
                     }
 
@@ -292,6 +279,7 @@ plt_params_norm_ss_rates_vs_time = {
                 'labels_y1': ['Eyy [Eyy < 0]', 'Eyy [Eyy >= 0]'],
                 'labels_y2': ['$\sigma$ [Eyy < 0]', '$\sigma$ [Eyy >= 0]'],
                 'log_y': True,
+                'm_alpha': 1,
                 'ec': ec2,
                 'c': c2,
                 'legend_loc': 'upper right'
@@ -310,7 +298,7 @@ anlys_params_norm_ss_rates_vs_time = {
 # -------------- CALCULATED INPUTS (DO NOT MODIFY) ----------------
 # ============================================================================
 # define full paths to mts and gom data
-dir_frame_map = os.path.join(dir_root,batch_ext,mts_ext,batch_ext+'_'+sample_ext)
+dir_frame_map = os.path.join(dir_root,batch_ext,mts_ext,batch_ext+'_'+sample_ext,frame_map_ext)
 dir_mts = os.path.join(dir_root,batch_ext,mts_ext,batch_ext+'_'+sample_ext)
 dir_results = os.path.join(dir_root,batch_ext,sample_ext,gom_ext)
 

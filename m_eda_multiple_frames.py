@@ -407,8 +407,8 @@ for i in range(udp.plt_frame_range[0],udp.plt_frame_range[1]+1):
         # update plot parameters dictionary with plot limits
         plt_vtcsa['xlims'] = [1.2*round(first_frame_df[anlys_vtcsa['x_var']].min(),1),
                              1.2*round(last_frame_df[anlys_vtcsa['x_var']].quantile(0.995),2)]
-        plt_vtcsa['ylims'] = [1.2*round(first_frame_df[anlys_vtcsa['y_var']].quantile(0.995),2),
-                             1.2*round(last_frame_df[anlys_vtcsa['y_var']].quantile(0.001),2)]
+        plt_vtcsa['ylims'] = [1.2*round(first_frame_df[anlys_vtcsa['y_var']].quantile(0.001),2),
+                             1.2*round(last_frame_df[anlys_vtcsa['y_var']].quantile(0.995),2)]
     
         # ----- create figure -----
         if i == udp.plt_frame_range[0]:

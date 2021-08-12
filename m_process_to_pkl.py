@@ -249,22 +249,24 @@ dir_root_local = 'C:/Users/jcv/Documents'
 # extensions to access sub-directories
 batch_ext = 'lcei_003'
 mts_ext = 'mts_data'
-sample_ext = '001_t03_r0X'
+sample_ext = '001_t05_r00'
 gom_ext = 'gom_results'
+time_map_ext = 'frame_time_mapping'
 
 # define full paths to mts and gom data
 try:
     dir_xsection = os.path.join(dir_root,batch_ext,sample_ext)
     dir_mts = os.path.join(dir_root,batch_ext,mts_ext,batch_ext+'_'+sample_ext)
     dir_gom_results = os.path.join(dir_root,batch_ext,sample_ext,gom_ext)
+    dir_frame_map = os.path.join(dir_root,batch_ext,mts_ext,batch_ext+'_'+sample_ext,time_map_ext)
 except:
     print('One of setup directories does not exist.')
 
 # ----- define constants -----
 spec_id = batch_ext+'_'+sample_ext # full specimen id
 Nx, Ny = 2448, 2048 # pixel resolution in x, y axis
-img_scale = 0.01568 # mm/pix
-t = 1.6 # thickness of sample [mm]
+img_scale = 0.02724 # mm/pix
+t = 1 # thickness of sample [mm]
 orientation = 'vertical'
 cmap_name = 'lajolla' # custom colormap stored in mpl_styles
 xsection_filename = batch_ext+'_'+sample_ext+'_section_coords.csv'
@@ -285,6 +287,8 @@ mts_col_dtypes = {'time':'float',
 files_gom = [f for f in os.listdir(dir_gom_results) if f.endswith('.csv')]
 # collect mts data file
 files_mts = [f for f in os.listdir(dir_mts) if f.endswith('.csv')]
+# collect frame-time conversion files
+files_frames = [f for f in os.listdir(dir_frame_map) if f.endswith('.csv')]
 
 # create vector of x dimensions
 x_vec = np.linspace(0,Nx-1,Nx) # vector - original x coords (pix)
@@ -317,11 +321,11 @@ except:
     print('No file containing cross-section coordinates found.')
 
 try:
-    frames_list = pd.read_csv(os.path.join(dir_mts,files_mts[-1]))
+    frames_list = pd.read_csv(os.path.join(dir_frame_map,files_frames[-1]))
     # keep only image number to extract from raw mts file
     keep_frames = frames_list[['image_no']]
     
-    for i in range(0,len(files_mts)-1):
+    for i in range(0,len(files_mts)):
         current_file = files_mts[i]
         if i == 0:
             mts_df = pd.DataFrame(columns = ['crosshead', 'load'])
@@ -348,7 +352,7 @@ strain_labels = ['Exx', 'Eyy', 'Exy']
 import time
 start_time = time.time()
 
-for i in range(0,5):#len(mts_df)):
+for i in range(0,len(mts_df)):
     # extract frame number and display
     frame_no = files_gom[i][28:-10] # lcei_001_006_t02_r00
     #frame_no = files_gom[i][35:-10] 
@@ -400,12 +404,12 @@ for i in range(0,5):#len(mts_df)):
     # drop rows with no cross-section listed
     results_df = results_df.dropna(axis=0, how = 'any')
     
-    save_filename = 'results_df_frame_' + '{:02d}'.format(int(frame_no)) + '.parquet'
+    save_filename = 'results_df_frame_' + '{:02d}'.format(int(frame_no)) + '.pkl'
     # table = pa.Table.from_pandas(results_df)
     # pq.write_table(table, save_filename)
-    results_df.to_parquet(os.path.join(dir_root_local,save_filename),
-                          engine='pyarrow', index=True)
-    #results_df.to_pkl(os.path.join(dir_root_local,save_filename))
+    #results_df.to_parquet(os.path.join(dir_root_local,save_filename),
+    #                      engine='pyarrow', index=True)
+    results_df.to_pickle(os.path.join(dir_root_local,save_filename))
     print("--- %s seconds ---" % (time.time() - start_time))
 
 #%% ===== INTERPOLATION DEBUGGING CODE =====
