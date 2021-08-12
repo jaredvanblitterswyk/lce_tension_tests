@@ -25,7 +25,7 @@ dir_root = 'Z:/Experiments/lce_tension'
 # extensions to access sub-directories
 batch_ext = 'lcei_003'
 mts_ext = 'mts_data'
-sample_ext = '001_t03_r0X'
+sample_ext = '001_t05_r00'
 gom_ext = 'gom_results'
 orientation = 'vertical'
 
@@ -59,7 +59,7 @@ dir_nu_folder = os.path.join(dir_figs_root,'nu_fields')
 # ----- define constants -----
 spec_id = batch_ext+'_'+sample_ext # full specimen id
 Ny, Nx = 2048, 2448 # pixel resolution in x, y axis
-img_scale = 0.01568 # mm/pix
+img_scale = 0.02724 # mm/pix
 t = 1.0 # thickness of sample [mm]
 cmap_name = 'tokyo' # custom colormap stored in mpl_styles
 cbar_levels = 25 # colorbar levels
@@ -74,11 +74,17 @@ plt.style.use('Z:/Python/mpl_styles/stg_plot_style_1.mplstyle')
 files_pkl = [f for f in os.listdir(dir_gom_results) if f.endswith('.pkl')]
 
 # create dictionary of plot parameters - pass to function
-plot_params = {'figsize': (2,4), 'xlabel': 'x (mm)', 'ylabel': 'y (mm)', 
-               's': 0.1, 'xmin': 13, 'xmax': 25,
-               'ymin': 0, 'ymax': m.ceil(Ny*img_scale),
+plot_params = {'figsize': (2,4),
+               'xlabel': 'x (mm)', 
+               'ylabel': 'y (mm)', 
+               'm_size': 0.1, 
+               'grid_alpha': 0.5,
                'dpi': 300, 'cmap': custom_map,
-               'tight_layout': True, 'hide_labels': False, 'show_fig': False,
+               'xlims': [0, 25],
+               'ylims': [0, m.ceil(Ny*img_scale)],
+               'tight_layout': True, 
+               'hide_labels': False, 
+               'show_fig': False,
                'save_fig': True
                }   
 plot_var_specific = {'Exx': {
@@ -110,7 +116,7 @@ plot_var_specific = {'Exx': {
 #%%
 # load in data
 frame_count = 0
-for i in range(84,len(files_pkl)):
+for i in range(1,4):#len(files_pkl)):
     print('Processing frame: '+str(i))
     save_filename = 'results_df_frame_'+"{:02d}".format(i)+'.pkl'
     frame_df = pd.read_pickle(os.path.join(dir_gom_results,save_filename))
@@ -150,7 +156,7 @@ for i in range(84,len(files_pkl)):
         plot_params['fpath'] = fpath
         
         # pass file to function that plots fields to file - lower res to save time initially
-        plot_field_contour_save(xx, yy, zz, plot_params)
+        plot_field_contour_save(xx, yy, zz, plot_params, i)
 
 #%% 
 # ----- write processing and plot parameters to file -----
