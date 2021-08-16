@@ -15,7 +15,7 @@ dir_root = 'Z:/Experiments/lce_tension'
 # extensions to access sub-directories
 batch_ext = 'lcei_003'
 mts_ext = 'mts_data'
-sample_ext = '001_t03_r0X'
+sample_ext = '001_t05_r00'
 gom_ext = 'gom_results'
 frame_map_ext = 'frame_time_mapping'
 
@@ -30,15 +30,15 @@ mts_col_dtypes = {'time':'float', 'crosshead':'float', 'load':'float',
 # ----------------------------------------------------------------------------
 load_multiple_frames = False # True if one wants to load all frames into memory simultaneously
 orientation = 'vertical' # Orientation of pulling axis w.r.t camera
-frame_max = 160 # max frame to consider
-frame_min = 136 # min frame to plot
-frame_rel_min = 158 # start frame for computing relative change between frames
-end_frame = 160 # manually define last frame of test/where all points still in FOV
-mask_frame = 143 # frame to use to mask points for clustering
-peak_frame_index = 2 # frame where load is max for normalizing stress/strain relax rates
+frame_min = 1 # min frame to plot
+frame_max = 36 # max frame to consider
 frame_range = frame_max - frame_min
-post_mask_frame = 158 # frame to compare to mask to determine if strain inc/dec
-img_scale = 0.01568 # image scale (mm/pix)
+#
+frame_rel_min = 5 # start frame for computing relative change between frames
+end_frame = 36 # manually define last frame of test/where all points still in FOV
+mask_frame = 5 # frame to use to mask points for clustering
+peak_frame_index = 5 # frame where load is max for normalizing stress/strain relax rates
+img_scale = 0.02724 # image scale (mm/pix)
 # ----------------------------------------------------------------------------
 # -------- Plotting ---------
 # ----------------------------------------------------------------------------
