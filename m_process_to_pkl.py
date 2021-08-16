@@ -21,6 +21,7 @@ import matplotlib.tri as tri
 import math as m
 import pyarrow as pa
 import pyarrow.parquet as pq
+import time
 
 # -- TO DO: would need to reformat m_process_dic_fields_btb_imaging
 # currently not setup up properly for importing functions as a package
@@ -112,20 +113,8 @@ def calculateEijRot(disp, strain_labels, spacing):
                 R[0,0] = -1
                 
             Rij[i,j] = np.arccos(R[0,0])*180/m.pi
-            '''
-            if np.isnan(np.sum(C)):
-                stretch_p1[i,j] = np.nan
-                Reig[i,j] = np.nan
-            else:
-                # compute eigenvalues and eigenvectors of stretch tensor
-                eig_vec_val = linalg.eig(C, left=False, right=True)
-                eigen = eig_vec_val[1][:,0]
-                stretch_p1[i,j] = eig_vec_val[0][0]
-                
-                # compute magnitude of principal eigenvector
-                Reig[i,j] = np.arccos(np.real(eigen[0]))*180/m.pi
-            '''
-    return Eij, Rij#, Reig, stretch_p1
+            
+    return Eij, Rij
 
 def mask_interp_region(triang, df, mask_side_len = 0.2):
     triangle_mask = []
@@ -178,22 +167,27 @@ def extract_load_at_images(mts_df, file_path, current_file, col_dtypes,
     cam_trig_df.reset_index(inplace=True, drop = True)
     
     # select only points where frame number matches subset of images in keep_frames
-    cam_trig_subset = cam_trig_df[cam_trig_df.index.isin(list(keep_frames['image_no']))]
+    cam_trig_subset = cam_trig_df[cam_trig_df.index.isin(list(keep_frames['raw_frame']))]
     
     # append to dataframe
     mts_df = pd.concat([mts_df,cam_trig_subset])
       
     return mts_df
 
-def interp_and_calc_strains(file, mask_side_length, spacing, disp_labels, strain_labels, xx, yy):
+def interp_and_calc_strains(file, mask_side_length, spacing, disp_labels, 
+                            strain_labels, xx, yy, coord_trans_applied):
     # load in data
     df = pd.read_csv(os.path.join(dir_gom_results,file), skiprows = 5)
     
     df = df.dropna(axis = 0)
     df = df.reset_index(drop=True)
     # transform GOM coords back to reference configuration
-    X = df['x']+(Nx/2)*img_scale - df['displacement_x']
-    Y = df['y']+(Ny/2)*img_scale - df['displacement_y']
+    if coord_trans_applied:
+        X = df['x.1'] - df['displacement_x']
+        Y = df['y.1'] - df['displacement_y']
+    else:
+        X = df['x']+(Nx/2)*img_scale - df['displacement_x']
+        Y = df['y']+(Ny/2)*img_scale - df['displacement_y']
       
     # define triangulation interpolation on x and y coordinates frm GOM
     # in reference coordinates
@@ -281,6 +275,7 @@ mts_col_dtypes = {'time':'float',
               'cam_44': 'int64',
               'cam_43': 'int64',
               'trig_arduino': 'int64'}
+coord_trans_applied = True
 
 # ---- calculate quantities and collect files to process ---
 # collect all csv files in gom results directory
@@ -321,9 +316,9 @@ except:
     print('No file containing cross-section coordinates found.')
 
 try:
-    frames_list = pd.read_csv(os.path.join(dir_frame_map,files_frames[-1]))
+    frames_list = pd.read_csv(os.path.join(dir_frame_map,files_frames[0]))
     # keep only image number to extract from raw mts file
-    keep_frames = frames_list[['image_no']]
+    keep_frames = frames_list[['raw_frame']]
     
     for i in range(0,len(files_mts)):
         current_file = files_mts[i]
@@ -349,10 +344,9 @@ coords_df['y_pix'] = np.reshape(yy_pix_crop,(Nxc*Nyc,))
 # ---- run processing -----  
 disp_labels = ['ux', 'uy', 'uz']
 strain_labels = ['Exx', 'Eyy', 'Exy']
-import time
-start_time = time.time()
 
-for i in range(0,len(mts_df)):
+for i in range(28,31):#0,len(mts_df)):
+    start_time = time.time()
     # extract frame number and display
     frame_no = files_gom[i][28:-10] # lcei_001_006_t02_r00
     #frame_no = files_gom[i][35:-10] 
@@ -363,7 +357,7 @@ for i in range(0,len(mts_df)):
     # compute interpolated strains and displacements in reference coordinates
     disp, Eij, Rij, area_mask, triangle_mask = interp_and_calc_strains(
         files_gom[i], mask_side_length, spacing, disp_labels, strain_labels,
-        xx_crop, yy_crop
+        xx_crop, yy_crop, coord_trans_applied
         )
     
     # assemble results in data frame
@@ -376,12 +370,10 @@ for i in range(0,len(mts_df)):
         outputs_df[component] = np.reshape(Eij.get(component),(Nxc*Nyc,))
 
     outputs_df['R'] = np.reshape(Rij,(Nxc*Nyc,))
-    #outputs_df['Reig'] = np.reshape(Reig,(Nx*Ny,))
-    #outputs_df['lambda1'] = np.reshape(stretch_p1,(Nx*Ny,))
     
     # ----- compile results into dataframe -----
     # concatenate to create one output dataframe
-    results_df = pd.concat([coords_df,outputs_df],axis = 1, join = 'inner')
+    results_df = pd.concat([coords_df,outputs_df], axis = 1, join = 'inner')
     # drop points with nans
     results_df = results_df.dropna(axis=0, how = 'any')
 
@@ -402,7 +394,7 @@ for i in range(0,len(mts_df)):
         print('No cross-section coordinates loaded - excluding width, area and stress from dataframe.')
     
     # drop rows with no cross-section listed
-    results_df = results_df.dropna(axis=0, how = 'any')
+    #results_df = results_df.dropna(axis=0, how = 'any')
     
     save_filename = 'results_df_frame_' + '{:02d}'.format(int(frame_no)) + '.pkl'
     # table = pa.Table.from_pandas(results_df)
@@ -411,54 +403,3 @@ for i in range(0,len(mts_df)):
     #                      engine='pyarrow', index=True)
     results_df.to_pickle(os.path.join(dir_root_local,save_filename))
     print("--- %s seconds ---" % (time.time() - start_time))
-
-#%% ===== INTERPOLATION DEBUGGING CODE =====
-'''
-good_triangle = []
-triang = tri.Triangulation(df['x'], df['y'])
-tr = triang.triangles
-for row in range(tr.shape[0]):
-    
-    x1 = df['x'][tr[row,0]]
-    x2 = df['x'][tr[row,1]]
-    x3 = df['x'][tr[row,2]]
-    y1 = df['y'][tr[row,0]]
-    y2 = df['y'][tr[row,1]]
-    y3 = df['y'][tr[row,2]]
-    
-    a = np.sqrt((x1-x2)**2 + (y1-y2)**2)
-    b = np.sqrt((x1-x3)**2 + (y1-y3)**2)
-    c = np.sqrt((x2-x3)**2 + (y2-y3)**2)
-    
-    sqa = a**2
-    sqb = b**2
-    sqc = c**2
-    
-    #if (sqa > sqc + sqb or sqb > sqa + sqc or sqc > sqa + sqb) and not ((a + b <= c) or (a + c <= b) or (b + c <= a)):
-    # if (a + b <= c) or (a + c <= b) or (b + c <= a) : 
-    if sqa < 0.2 and sqb < 0.2 and sqc < 0.2:
-        good_triangle.append(0)
-    else: 
-        good_triangle.append(1)
-        
-max_radius = 7
-
-triang = tri.Triangulation(df['x'], df['y'])
-triangles = triang.triangles
-
-fig1, ax1 = plt.subplots()
-ax1.triplot(triang, 'o-',color = '#a4a4a4', mfc = '#383838', mec = '#383838', markersize=0.5, lw=0.5)
-
-x = np.array(df['x'])
-y = np.array(df['y'])
-
-xtri = x[triangles] - np.roll(x[triangles], 1, axis=0)
-ytri = y[triangles] - np.roll(x[triangles], 1, axis=0)
-maxi = np.max(np.sqrt(xtri**2 + ytri**2), axis=1)
-
-triang.set_mask(np.array(good_triangle) > 0)
-
-ax1.triplot(triang, color='#3757b3', lw=0.5)
-ax1.set_xlabel('x (mm)')
-ax1.set_ylabel('y (mm)')
-'''
