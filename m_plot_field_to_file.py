@@ -25,7 +25,7 @@ dir_root = 'Z:/Experiments/lce_tension'
 # extensions to access sub-directories
 batch_ext = 'lcei_003'
 mts_ext = 'mts_data'
-sample_ext = '001_t05_r00'
+sample_ext = '001_t06_r00'
 gom_ext = 'gom_results'
 orientation = 'vertical'
 
@@ -61,12 +61,12 @@ spec_id = batch_ext+'_'+sample_ext # full specimen id
 Ny, Nx = 2048, 2448 # pixel resolution in x, y axis
 img_scale = 0.02724 # mm/pix
 t = 1.0 # thickness of sample [mm]
-cmap_name = 'tokyo' # custom colormap stored in mpl_styles
+cmap_name = 'lapaz' # custom colormap stored in mpl_styles
 cbar_levels = 25 # colorbar levels
 
 # load in colormap and define plot style
 cm_data = np.loadtxt('Z:/Python/mpl_styles/'+cmap_name+'.txt')
-custom_map = LinearSegmentedColormap.from_list('custom', cm_data)
+custom_map = LinearSegmentedColormap.from_list('custom', np.flipud(cm_data))
 
 plt.style.use('Z:/Python/mpl_styles/stg_plot_style_1.mplstyle')
 
@@ -80,8 +80,8 @@ plot_params = {'figsize': (2,4),
                'm_size': 0.1, 
                'grid_alpha': 0.5,
                'dpi': 300, 'cmap': custom_map,
-               'xlims': [0, 25],
-               'ylims': [0, m.ceil(Ny*img_scale)],
+               'xlims': [24, 40],
+               'ylims': [0, 45],#m.ceil(Ny*img_scale)],
                'tight_layout': True, 
                'hide_labels': False, 
                'show_fig': False,
@@ -91,22 +91,22 @@ plot_var_specific = {'Exx': {
                 'vlims': [-0.2, 0], 'dir_save_figs': dir_strain_folder
               },
               'Eyy': {
-                  'vlims': [0, 0.58], 'dir_save_figs': dir_strain_folder
+                  'vlims': [0, 0.75], 'dir_save_figs': dir_strain_folder
               },
               'Exy': {
-                  'vlims': [-0.06, 0.06], 'dir_save_figs': dir_strain_folder
+                  'vlims': [-0.05, 0.05], 'dir_save_figs': dir_strain_folder
               },
               'ux': {
-                  'vlims': [-0.7, 0.5], 'dir_save_figs': dir_disp_folder
+                  'vlims': [-1, 1], 'dir_save_figs': dir_disp_folder
               },
               'uy': {
                   'vlims': [0, 16], 'dir_save_figs': dir_disp_folder
               },
               'uz': {
-                  'vlims': [0, 0.6], 'dir_save_figs': dir_disp_folder
+                  'vlims': [0, 4], 'dir_save_figs': dir_disp_folder
               },
               'R': {
-                  'vlims': [0, 5], 'dir_save_figs': dir_rotation_folder
+                  'vlims': [-4, 4], 'dir_save_figs': dir_rotation_folder
               },
               'nu': {
                   'vlims': [0, 0.5], 'dir_save_figs': dir_nu_folder
@@ -116,7 +116,7 @@ plot_var_specific = {'Exx': {
 #%%
 # load in data
 frame_count = 0
-for i in range(1,4):#len(files_pkl)):
+for i in range(0,len(files_pkl)):
     print('Processing frame: '+str(i))
     save_filename = 'results_df_frame_'+"{:02d}".format(i)+'.pkl'
     frame_df = pd.read_pickle(os.path.join(dir_gom_results,save_filename))
