@@ -9,7 +9,6 @@ import pandas as pd
 import numpy as np
 import matplotlib as mpl
 import matplotlib.pyplot as plt
-from func.df_extract_transform import return_frame_dataframe, add_features
 
 def create_simple_scatter(x, y, plot_params, plot_frame_range, ax):
     '''Generate boxplots for one variable as a function of frame number
