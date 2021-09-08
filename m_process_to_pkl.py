@@ -134,7 +134,7 @@ coords_df['y_pix'] = np.reshape(yy_pix_crop,(Nxc*Nyc,))
 disp_labels = ['ux', 'uy', 'uz']
 strain_labels = ['Exx', 'Eyy', 'Exy']
 
-for i in range(28,31):#0,len(mts_df)):
+for i in range(30,31):#0,len(mts_df)):
     start_time = time.time()
     # extract frame number and display
     frame_no = files_gom[i][28:-10] # lcei_001_006_t02_r00
@@ -149,6 +149,9 @@ for i in range(28,31):#0,len(mts_df)):
         strain_labels, xx_crop, yy_crop, coord_trans_applied
         )
     
+    # compute strain gradient to find outliers
+    de_dy, de_dx = np.gradient(Eij['Eyy'])
+    
     # assemble results in data frame
     outputs_df = pd.DataFrame()
     
@@ -159,6 +162,12 @@ for i in range(28,31):#0,len(mts_df)):
         outputs_df[component] = np.reshape(Eij.get(component),(Nxc*Nyc,))
 
     outputs_df['R'] = np.reshape(Rij,(Nxc*Nyc,))
+    outputs_df['de_dy'] = np.reshape(de_dy,(Nxc*Nyc,))
+    outputs_df['de_dx'] = np.reshape(de_dx,(Nxc*Nyc,))
+    
+    # square and take inverse to exaggerate outliers
+    outputs_df['de_dx2'] = outputs_df['de_dx'].apply(lambda x: x**2)
+    outputs_df['de_dy2'] = outputs_df['de_dy'].apply(lambda x: x**2)
     
     # ----- compile results into dataframe -----
     # concatenate to create one output dataframe
@@ -190,5 +199,5 @@ for i in range(28,31):#0,len(mts_df)):
     # pq.write_table(table, save_filename)
     #results_df.to_parquet(os.path.join(dir_root_local,save_filename),
     #                      engine='pyarrow', index=True)
-    results_df.to_pickle(os.path.join(dir_root_local,save_filename))
+    #results_df.to_pickle(os.path.join(dir_root_local,save_filename))
     print("--- %s seconds ---" % (time.time() - start_time))
