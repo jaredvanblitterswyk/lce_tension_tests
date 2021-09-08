@@ -12,25 +12,37 @@ from sklearn.preprocessing import StandardScaler
 from sklearn.mixture import BayesianGaussianMixture
 
 def add_features(data_df, img_scale, time_mapping, orientation):
-    # ----------------------------------------------------------------------------
+    '''Add features to dataframes for EDA 
+    (scaled coordinates, time and stretch ratios)
+    
+    Args: 
+        data_df (dataframe): original dataframe containing basline data for frame
+        img_scale (float): mm per pixel image scale
+        time_mapping (dict): mapping of frame to test time in seconds
+        orientation (string): specify specimen orientation relative to camera FOV
+            
+    Returns:
+        data_df (dataframe): original dataframe with features appended to columns
+    '''
+    # ------------------------------------------------------------------------
     # ----- add columns with scaled coordinates -----
-    # ----------------------------------------------------------------------------
+    # ------------------------------------------------------------------------
     data_df['x_mm'] = data_df['x_pix']*img_scale + data_df['ux']
     data_df['y_mm'] = data_df['y_pix']*img_scale + data_df['uy']
     
-    # ----------------------------------------------------------------------------
+    # ------------------------------------------------------------------------
     # ----- calculate axial stretch from Green-Lagrange strain fields ----
-    # ----------------------------------------------------------------------------
+    # ------------------------------------------------------------------------
     data_df['lambda_y'] = data_df[['Eyy']].apply(lambda x: np.sqrt(2*x+1))
     
-    # ----------------------------------------------------------------------------
+    # ------------------------------------------------------------------------
     # add time to dataframe based on time mapping
-    # ----------------------------------------------------------------------------
+    # ------------------------------------------------------------------------
     data_df['time'] = data_df['frame'].map(time_mapping)
     
-    # ----------------------------------------------------------------------------
+    # ------------------------------------------------------------------------
     # ----- create in-plane Poisson's ratio feature -----
-    # ---------------------------------------------------------------------------
+    # ------------------------------------------------------------------------
     try: 
         if orientation == 'vertical':
             data_df['nu'] = -1*data_df['Exx']/data_df['Eyy']
@@ -42,6 +54,15 @@ def add_features(data_df, img_scale, time_mapping, orientation):
     return data_df
 
 def return_frame_df(frame_no, dir_data):
+    '''Load pre-processed data (m_process_to_pkl.py) for a single frame 
+    
+    Args: 
+        frame_no (int): frame number to load 
+        dir_data (string): directory containing processed data in .pkl format
+            
+    Returns:
+        frame_df (dataframe): dataframe containing full-field data
+    '''
     # define file path
     save_filename = 'results_df_frame_' + '{:02d}'.format(frame_no) + '.pkl'
     current_filepath = os.path.join(dir_data,save_filename)
@@ -52,7 +73,17 @@ def return_frame_df(frame_no, dir_data):
     return frame_df
 
 def return_frame_df_spark(frame_no, dir_data, sc):
+    '''Load pre-processed data (m_process_to_pkl.py) for a single frame using 
+    spark (NEED TO DEBUG)
     
+    Args: 
+        frame_no (int): frame number to load 
+        dir_data (string): directory containing processed data in .pkl format
+        sc (object): sql context object previously initiated
+            
+    Returns:
+        frame_df (dataframe): dataframe containing full-field data
+    '''
     # define file path
     save_filename = 'results_df_frame_' + '{:02d}'.format(frame_no) + '.pkl'
     current_filepath = os.path.join(dir_data,save_filename)
@@ -66,6 +97,17 @@ def return_frame_df_spark(frame_no, dir_data, sc):
     return frame_df
 
 def return_points_in_all_frames(data_df, last_frame_df):
+    '''Return dataframe containing only points in FOV for all frames up to a 
+        defined 'last frame' for analysis
+    
+    Args: 
+        data_df (dataframe): dataframe containing measurements for current frame 
+        last_frame_df (dataframe): dataframe for last frame in analysis
+            
+    Returns:
+        data_all_df (dataframe): dataframe containing only points in FOV up to 
+            last frame specified by last_frame_df
+    '''
     # copy data
     data_df_copy = data_df.copy()
     
@@ -76,6 +118,19 @@ def return_points_in_all_frames(data_df, last_frame_df):
 
 def find_points_in_categories(num_categories, category_ranges, 
                               category_var, frame_df):
+    '''Find indices of points corresponding to each defined category 
+        (based on variable passed to function - typ. axial strain)
+    
+    Args: 
+        num_categories (int): number of categories to split field data into
+        category_ranges (dict): upper and lower bounds of category ranges
+        category_var (string): name of variable to split data on
+        frame_df (dataframe): dataframe with full-field data for a given frame
+            
+    Returns:
+        indices_dict (dict): lists of point indices corresponding to each cluster
+    '''
+    # define empty dictionary to store indices for each cluster
     indices_dict = {}
         
     # --- loop through all categories, find points and plot ---
@@ -95,7 +150,17 @@ def find_points_in_categories(num_categories, category_ranges,
         
     return indices_dict
 
-def find_points_in_categories_cluster(num_categories, frame_df):
+def find_points_in_categories_cluster(num_clusters, frame_df):
+    '''Find indices of points corresponding to clusters defined from using a 
+        clustering algorithm 
+    
+    Args: 
+        num_clusters (int): number of clusters data divided into
+        frame_df (dataframe): dataframe with full-field data for a given frame
+            
+    Returns:
+        indices_dict (dict): lists of point indices corresponding to each cluster
+    '''
     indices_dict = {}
         
     # --- loop through all categories, find points and plot ---
@@ -105,7 +170,19 @@ def find_points_in_categories_cluster(num_categories, frame_df):
         
     return indices_dict
 
-def define_strain_clusters(frame_df, num_clusters, scale_features, cluster_args):
+def define_strain_clusters(num_clusters, frame_df, scale_features, cluster_args):
+    '''CLuster full-field data using a Bayesian Gaussian Mixture algorithm
+    
+    Args: 
+        num_clusters (int): number of clusters
+        frame_df (dataframe): dataframe with full-field data for a given frame
+        scale_features (boolean): flag to toggle standard scaling of features
+        cluster_args (dict): dictionary of arguments in model definition
+            
+    Returns:
+        frame_df (dataframe): dataframe containing full-field data with cluster
+            assignment appended as column
+    '''
     
     # define features (coordinates and strain)
     X = frame_df[['x_mm', 'y_mm', 'Eyy']]
@@ -131,6 +208,20 @@ def define_strain_clusters(frame_df, num_clusters, scale_features, cluster_args)
     return frame_df
 
 def identify_outliers(frame_df, thresholds):
+    '''Identify outliers in measurements using square of strain gradient
+    
+    Args: 
+        frame_df (dataframe): dataframe with full-field data for a given frame
+        thresholds (array): thresholds for outliers for x and y [x, y]
+            
+    Returns:
+        outliers_df (dataframe): dataframe of full-field data flagged as
+            outliers
+        filtered_df (dataframe): dataframe of full-field data with 
+            outliers excluded
+            
+    '''
+    
     outliers_df = frame_df.copy()
     filtered_df = frame_df.copy()
 
