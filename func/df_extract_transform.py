@@ -7,6 +7,9 @@ Created on Thu Jul 15 12:27:02 2021
 import pandas as pd
 import os
 import numpy as np
+import pyspark
+from sklearn.preprocessing import StandardScaler
+from sklearn.mixture import BayesianGaussianMixture
 
 def add_features(data_df, img_scale, time_mapping, orientation):
     # ----------------------------------------------------------------------------
@@ -38,12 +41,26 @@ def add_features(data_df, img_scale, time_mapping, orientation):
     
     return data_df
 
-def return_frame_dataframe(frame_no, dir_data):
+def return_frame_df(frame_no, dir_data):
     # define file path
     save_filename = 'results_df_frame_' + '{:02d}'.format(frame_no) + '.pkl'
     current_filepath = os.path.join(dir_data,save_filename)
     #load data and add features
     frame_df = pd.read_pickle(current_filepath)
+    frame_df['frame'] = frame_no*np.ones((frame_df.shape[0],))
+    
+    return frame_df
+
+def return_frame_df_spark(frame_no, dir_data, sc):
+    
+    # define file path
+    save_filename = 'results_df_frame_' + '{:02d}'.format(frame_no) + '.pkl'
+    current_filepath = os.path.join(dir_data,save_filename)
+    #load data and add features
+    pickleRdd = sc.pickleFile(current_filepath).collect()
+    frame_df = spark.createDataFrame(pickleRdd)
+    
+    #frame_df = pd.read_pickle(current_filepath)
     frame_df['frame'] = frame_no*np.ones((frame_df.shape[0],))
     
     return frame_df
@@ -77,3 +94,49 @@ def find_points_in_categories(num_categories, category_ranges,
         indices_dict[j] = category_band_df.index
         
     return indices_dict
+
+def find_points_in_categories_cluster(num_categories, frame_df):
+    indices_dict = {}
+        
+    # --- loop through all categories, find points and plot ---
+    for j in range(0,num_categories):
+        category_band_df = frame_df['cluster'] = j
+        indices_dict[j] = category_band_df.index
+        
+    return indices_dict
+
+def define_strain_clusters(frame_df, num_clusters, scale_features, cluster_args):
+    
+    # define features (coordinates and strain)
+    X = frame_df[['x_mm', 'y_mm', 'Eyy']]
+
+    # scale features
+    if scale_features:
+        scaler = StandardScaler()
+        Xs = scaler.fit_transform(X)
+
+    # Bayesian Gaussian mixture model
+    bgm = BayesianGaussianMixture(n_components = num_clusters, random_state = 0, 
+                                  **cluster_args)
+    if scale_features:
+        bgm.fit(Xs)
+        y_pred_bgm = bgm.predict(Xs)
+    else:
+        bgm.fit(X)
+        y_pred_bgm = bgm.predict(X)
+
+    # append cluster number to dataframe
+    frame_df['cluster'] = y_pred_bgm
+    
+    return frame_df
+
+def identify_outliers(frame_df, thresholds):
+    outliers_df = frame_df.copy()
+    filtered_df = frame_df.copy()
+
+    outliers_df = outliers_df[(outliers_df['de_dy2'] >= thresholds[1]) 
+                              | (outliers_df['de_dx2'] >= thresholds[0])]
+    filtered_df = filtered_df[(filtered_df['de_dy2'] < thresholds[1]) 
+                              | (filtered_df['de_dx2'] < thresholds[0])]
+    
+    return outliers_df, filtered_df
