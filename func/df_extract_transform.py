@@ -170,7 +170,7 @@ def find_points_in_categories_cluster(num_clusters, frame_df):
         
     return indices_dict
 
-def define_strain_clusters(num_clusters, frame_df, scale_features, cluster_args):
+def define_clusters_ml(num_clusters, frame_df, scale_features, cluster_args):
     '''CLuster full-field data using a Bayesian Gaussian Mixture algorithm
     
     Args: 
