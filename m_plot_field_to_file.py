@@ -25,7 +25,7 @@ dir_root = 'Z:/Experiments/lce_tension'
 # extensions to access sub-directories
 batch_ext = 'lcei_003'
 mts_ext = 'mts_data'
-sample_ext = '001_t06_r00'
+sample_ext = '001_t05_r00'
 gom_ext = 'gom_results'
 orientation = 'vertical'
 
@@ -91,7 +91,7 @@ plot_var_specific = {'Exx': {
                 'vlims': [-0.2, 0], 'dir_save_figs': dir_strain_folder
               },
               'Eyy': {
-                  'vlims': [0, 0.75], 'dir_save_figs': dir_strain_folder
+                  'vlims': [0.35, 0.6], 'dir_save_figs': dir_strain_folder
               },
               'Exy': {
                   'vlims': [-0.05, 0.05], 'dir_save_figs': dir_strain_folder
@@ -138,7 +138,7 @@ for i in range(0,len(files_pkl)):
 
     plt.close('all')
     print('Plotting fields for frame: '+str(i))
-    for j in ['ux','uy','uz','Exx','Exy','Eyy','R', 'nu']:
+    for j in ['Eyy']:#['ux','uy','uz','Exx','Exy','Eyy','R', 'nu']:
         
         # filter data to plot
         xx = np.array(frame_df[['x_mm']])

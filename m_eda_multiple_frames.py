@@ -30,7 +30,7 @@ from func.df_extract_transform import (add_features,
                                        return_frame_df_spark,
                                        return_points_in_all_frames,
                                        find_points_in_categories,
-                                       find_points_in_categories_cluster
+                                       find_points_in_categories_cluster,
                                        define_clusters_ml)
 from func.mts_extract_data import extract_mts_data
 
