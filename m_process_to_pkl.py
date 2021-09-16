@@ -134,7 +134,7 @@ coords_df['y_pix'] = np.reshape(yy_pix_crop,(Nxc*Nyc,))
 disp_labels = ['ux', 'uy', 'uz']
 strain_labels = ['Exx', 'Eyy', 'Exy']
 
-for i in range(30,31):#0,len(mts_df)):
+for i in range(0,len(mts_df)):
     start_time = time.time()
     # extract frame number and display
     frame_no = files_gom[i][28:-10] # lcei_001_006_t02_r00
@@ -199,5 +199,5 @@ for i in range(30,31):#0,len(mts_df)):
     # pq.write_table(table, save_filename)
     #results_df.to_parquet(os.path.join(dir_root_local,save_filename),
     #                      engine='pyarrow', index=True)
-    #results_df.to_pickle(os.path.join(dir_root_local,save_filename))
+    results_df.to_pickle(os.path.join(dir_root_local,save_filename))
     print("--- %s seconds ---" % (time.time() - start_time))
