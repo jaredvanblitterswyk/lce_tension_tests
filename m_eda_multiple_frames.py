@@ -10,6 +10,8 @@ import sys
 sys.path.append('Z:/Python/tension_test_processing')
 sys.path.append(os.path.join(sys.path[-1],'func'))
 import csv
+import findspark
+import pyspark
 import pandas as pd
 import numpy as np
 import matplotlib as mpl
@@ -24,11 +26,13 @@ from func.create_eda_plots import (create_simple_scatter,
                                    var_vs_time_clusters_same_axis,
                                    norm_stress_strain_rates_vs_time)
 from func.df_extract_transform import (add_features, 
-                                       return_frame_dataframe, 
+                                       return_frame_df, 
+                                       return_frame_df_spark,
                                        return_points_in_all_frames,
-                                       find_points_in_categories)
+                                       find_points_in_categories,
+                                       find_points_in_categories_cluster
+                                       define_clusters_ml)
 from func.mts_extract_data import extract_mts_data
-
 
 #%% ----- MAIN SCRIPT -----
 plt.style.use('Z:/Python/mpl_styles/stg_plot_style_1.mplstyle')
@@ -88,11 +92,11 @@ if udp.load_multiple_frames:
 
 else:
     # define frames of interest
-    mask_frame_df = return_frame_dataframe(udp.mask_frame, udp.dir_results)
-    first_frame_df = return_frame_dataframe(udp.frame_min, udp.dir_results)
-    first_frame_rel_df = return_frame_dataframe(udp.frame_rel_min, udp.dir_results)
-    last_frame_df = return_frame_dataframe(udp.frame_max, udp.dir_results)
-    frame_end_df = return_frame_dataframe(udp.end_frame, udp.dir_results)
+    mask_frame_df = return_frame_df(udp.mask_frame, udp.dir_results)
+    first_frame_df = return_frame_df(udp.frame_min, udp.dir_results)
+    first_frame_rel_df = return_frame_df(udp.frame_rel_min, udp.dir_results)
+    last_frame_df = return_frame_df(udp.frame_max, udp.dir_results)
+    frame_end_df = return_frame_df(udp.end_frame, udp.dir_results)
     
     # add time independent features
     mask_frame_df = add_features(mask_frame_df, udp.img_scale, time_mapping, udp.orientation)
@@ -111,6 +115,11 @@ for p in udp.plt_to_generate:
     
 print('-----------------------------------------------')
 
+# define clusters using ML
+if udp.clusters_ml:
+    last_frame_df = define_clusters_ml(udp.num_clusters, last_frame_df, 
+                                       udp.scale_features, udp.cluster_args)
+
 if 'global_stress_strain' in udp.plt_to_generate and udp.load_multiple_frames:
     # import analysis parameters
     anlys_ss = udp.anlys_params_glob_ss
@@ -122,19 +131,24 @@ if 'var_clusters_vs_time_subplots' in udp.plt_to_generate:
     # ----- initialize analysis variables -----
     anlys_vcts = udp.anlys_params_var_clusters_subplots
     
-    # calculate strain range bounds
-    max_category_band = round(mask_frame_df[anlys_vcts['cat_var']].quantile(0.98),2)
-    min_category_band = round(mask_frame_df[anlys_vcts['cat_var']].min(),2)
+    if udp.clusters_ml:
+        category_indices = find_points_in_categories_cluster(udp. num_clusters, 
+                                                             last_frame_df)
+        
+    else:
+        # calculate strain range bounds
+        max_category_band = round(mask_frame_df[anlys_vcts['cat_var']].quantile(0.98),2)
+        min_category_band = round(mask_frame_df[anlys_vcts['cat_var']].min(),2)
+        
+        category_ranges = np.linspace(min_category_band, max_category_band, 
+                                      anlys_vcts['num_categories']) 
     
-    category_ranges = np.linspace(min_category_band, max_category_band, 
-                                  anlys_vcts['num_categories']) 
-
-    # find indices of points on sample belonging to each category
-    category_indices = find_points_in_categories(anlys_vcts['num_categories'], 
-                                                 category_ranges, 
-                                                 anlys_vcts['cat_var'], 
-                                                 mask_frame_df
-                                                 )
+        # find indices of points on sample belonging to each category
+        category_indices = find_points_in_categories(anlys_vcts['num_categories'], 
+                                                     category_ranges, 
+                                                     anlys_vcts['cat_var'], 
+                                                     mask_frame_df
+                                                     )
     
     # add categories to analysis parameters dictionary
     anlys_vcts['category_indices'] = category_indices
@@ -144,19 +158,24 @@ if 'compressibility_check' in udp.plt_to_generate:
     # ----- initialize analysis variables -----
     anlys_cc = udp.anlys_params_comp_check
     
-    # calculate strain range bounds
-    max_category_band = round(mask_frame_df[anlys_cc['cat_var']].quantile(0.98),2)
-    min_category_band = round(mask_frame_df[anlys_cc['cat_var']].min(),2)
+    if udp.clusters_ml:
+        category_indices = find_points_in_categories_cluster(udp. num_clusters, 
+                                                             last_frame_df)
+        
+    else:
+        # calculate strain range bounds
+        max_category_band = round(mask_frame_df[anlys_cc['cat_var']].quantile(0.98),2)
+        min_category_band = round(mask_frame_df[anlys_cc['cat_var']].min(),2)
+        
+        category_ranges = np.linspace(min_category_band, max_category_band, 
+                                      anlys_cc['num_categories']) 
     
-    category_ranges = np.linspace(min_category_band, max_category_band, 
-                                  anlys_cc['num_categories']) 
-
-    # find indices of points on sample belonging to each category
-    category_indices = find_points_in_categories(anlys_cc['num_categories'], 
-                                                 category_ranges, 
-                                                 anlys_cc['cat_var'], 
-                                                 mask_frame_df
-                                                 )
+        # find indices of points on sample belonging to each category
+        category_indices = find_points_in_categories(anlys_cc['num_categories'], 
+                                                     category_ranges, 
+                                                     anlys_cc['cat_var'], 
+                                                     mask_frame_df
+                                                     )
     
     # add categories to analysis parameters dictionary
     anlys_cc['category_indices'] = category_indices
@@ -166,19 +185,24 @@ if 'overlay_pts_on_sample_var' in udp.plt_to_generate:
     # ----- initialize analysis variables -----
     anlys_opsv = udp.anlys_params_pts_overlay_var
     
-    # calculate strain range bounds
-    max_category_band = round(mask_frame_df[anlys_opsv['cat_var']].quantile(0.98),2)
-    min_category_band = round(mask_frame_df[anlys_opsv['cat_var']].min(),2)
+    if udp.clusters_ml:
+        category_indices = find_points_in_categories_cluster(udp. num_clusters, 
+                                                             last_frame_df)
+        
+    else:
+        # calculate strain range bounds
+        max_category_band = round(mask_frame_df[anlys_opsv['cat_var']].quantile(0.98),2)
+        min_category_band = round(mask_frame_df[anlys_opsv['cat_var']].min(),2)
+        
+        category_ranges = np.linspace(min_category_band, max_category_band, 
+                                      anlys_opsv['num_categories']) 
     
-    category_ranges = np.linspace(min_category_band, max_category_band, 
-                                  anlys_opsv['num_categories']) 
-
-    # find indices of points on sample belonging to each category
-    category_indices = find_points_in_categories(anlys_opsv['num_categories'], 
-                                                 category_ranges, 
-                                                 anlys_opsv['cat_var'], 
-                                                 mask_frame_df
-                                                 )
+        # find indices of points on sample belonging to each category
+        category_indices = find_points_in_categories(anlys_opsv['num_categories'], 
+                                                     category_ranges, 
+                                                     anlys_opsv['cat_var'], 
+                                                     mask_frame_df
+                                                     )
     
     # add categories to analysis parameters dictionary
     anlys_opsv['category_indices'] = category_indices
