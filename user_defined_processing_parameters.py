@@ -36,17 +36,30 @@ frame_range = frame_max - frame_min
 #
 frame_rel_min = 5 # start frame for computing relative change between frames
 end_frame = 36 # manually define last frame of test/where all points still in FOV
-mask_frame = 5 # frame to use to mask points for clustering
+mask_frame = 8 # frame to use to mask points for clustering
 peak_frame_index = 5 # frame where load is max for normalizing stress/strain relax rates
 img_scale = 0.02724 # image scale (mm/pix)
+# cluster points using ML
+clusters_ml = True
+num_clusters = 25
+scale_features = False
+cluster_args = {}
+cluster_args = {}
+cluster_args['n_init']: 3 
+cluster_args['max_iter']: 400
 # ----------------------------------------------------------------------------
 # -------- Plotting ---------
 # ----------------------------------------------------------------------------
 # -------- Specify which plots to generate ----------
 # NOTE: 'all plot options' only for reference and not called in main script
 plt_to_generate = [
+                   'boxplot',
+                   'histogram',
                    'global_stress_strain',
                    'var_clusters_vs_time_subplots',
+                   'overlay_pts_on_sample_var',
+                   'overlay_pts_on_sample_relative',
+                   'compressibility_check',
                    'norm_stress_strain_rates_vs_time',
                    'var_vs_time_clusters_same_axis'
                    ]
