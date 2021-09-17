@@ -17,6 +17,7 @@ import numpy as np
 import matplotlib as mpl
 import matplotlib.pyplot as plt
 import user_defined_processing_parameters as udp
+from func.plot_field_contour_save import *
 from func.create_eda_plots import (create_simple_scatter, 
                                    histogram_vs_frame, 
                                    boxplot_vs_frame,
@@ -119,6 +120,35 @@ print('-----------------------------------------------')
 if udp.clusters_ml:
     last_frame_df = define_clusters_ml(udp.num_clusters, last_frame_df, 
                                        udp.scale_features, udp.cluster_args)
+    
+    xx = np.array(last_frame_df[['x_mm']])
+    yy = np.array(last_frame_df[['y_mm']])
+    zz = np.array(last_frame_df[['cluster']]) 
+    
+    plot_params_cluster = {
+        'figsize': (2,4),
+        'xlabel': 'x (mm)', 
+        'ylabel': 'y (mm)', 
+        'm_size': 0.01, 
+        'grid_alpha': 0.5,
+        'dpi': 300, 'cmap': udp.custom_map,
+        'xlims': [24, 40],
+        'ylims': [0, 32],#m.ceil(Ny*img_scale)],
+        'tight_layout': True, 
+        'hide_labels': False, 
+        'show_fig': True,
+        'save_fig': False
+        }   
+    plot_params_cluster['vmin'] = 0
+    plot_params_cluster['vmax'] = udp.num_clusters
+    plot_params_cluster['var_name'] = 'Cluster No.'
+    plot_field_contour_save(xx, yy, zz, plot_params_cluster, udp.frame_max)
+    
+    plot_params_cluster['vmin'] = 0
+    plot_params_cluster['vmax'] = 0.4
+    plot_params_cluster['var_name'] = 'Eyy'
+    zz = np.array(last_frame_df[['Eyy']])
+    plot_field_contour_save(xx, yy, zz, plot_params_cluster, udp.frame_max)
 
 if 'global_stress_strain' in udp.plt_to_generate and udp.load_multiple_frames:
     # import analysis parameters
@@ -132,15 +162,15 @@ if 'var_clusters_vs_time_subplots' in udp.plt_to_generate:
     anlys_vcts = udp.anlys_params_var_clusters_subplots
     
     if udp.clusters_ml:
-        category_indices = find_points_in_categories_cluster(udp. num_clusters, 
+        cluster_indices = find_points_in_categories_cluster(udp.num_clusters, 
                                                              last_frame_df)
         
     else:
         # calculate strain range bounds
-        max_category_band = round(mask_frame_df[anlys_vcts['cat_var']].quantile(0.98),2)
-        min_category_band = round(mask_frame_df[anlys_vcts['cat_var']].min(),2)
+        max_cluster_band = round(mask_frame_df[anlys_vcts['cat_var']].quantile(0.98),2)
+        min_cluster_band = round(mask_frame_df[anlys_vcts['cat_var']].min(),2)
         
-        category_ranges = np.linspace(min_category_band, max_category_band, 
+        category_ranges = np.linspace(min_cluster_band, max_cluster_band, 
                                       anlys_vcts['num_categories']) 
     
         # find indices of points on sample belonging to each category

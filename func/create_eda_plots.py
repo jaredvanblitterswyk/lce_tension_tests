@@ -124,12 +124,12 @@ def var_clusters_vs_time_subplots(frame_df, analysis_params, plot_params,
                                   plot_frame_range, time_mapping, 
                                   field_avg_var, field_avg_x, i, ax):
     '''Generate scatter plots of values from points on the sample belonging to
-    categories defined based on an input variable and mask frame
+    clusters defined based on an input variable and mask frame
     
     Args: 
         frame_df (dataframe): results from current frame
         subplot_dims (array): number of subplots in rows and columns
-        analysis_params (dict): variables used for plot on x,y and categories
+        analysis_params (dict): variables used for plot on x,y and clusters
         plot_params (dict): dictionary of parameters to customize plot
         plot_frame_range (array): min and max frame numbers to plot
         time_mapping (dict): map frame number to test time
@@ -144,23 +144,23 @@ def var_clusters_vs_time_subplots(frame_df, analysis_params, plot_params,
     '''
 
     # ----- add data to subplots -----  
-    for j in range(0, analysis_params['num_categories']):
+    for j in range(0, analysis_params['num_clusters']):
         row = int(j/(plot_params['subplot_dims'][1]))
         col = j - row*(plot_params['subplot_dims'][1])
         
-        category_df = frame_df[frame_df.index.isin(
-                    analysis_params['category_indices'][j].values
+        cluster_df = frame_df[frame_df.index.isin(
+                    analysis_params['cluster_indices'][j].values
                     )]
         
-        if category_df.shape[0] > analysis_params['samples']:
-            category_sample = category_df.sample(
+        if cluster_df.shape[0] > analysis_params['samples']:
+            cluster_sample = cluster_df.sample(
                 n = analysis_params['samples'], random_state = 1
                 )
         else:
-            category_sample = category_df.copy()
+            cluster_sample = cluster_df.copy()
     
-        ax[row,col].scatter(category_sample[analysis_params['x_var']],
-                             category_sample[analysis_params['y_var']], 
+        ax[row,col].scatter(cluster_sample[analysis_params['x_var']],
+                             cluster_sample[analysis_params['y_var']], 
                              s = plot_params['m_size'], 
                              c = plot_params['c'][j], 
                              edgecolors = plot_params['ec'][j], 
@@ -170,7 +170,7 @@ def var_clusters_vs_time_subplots(frame_df, analysis_params, plot_params,
     
     # ----- annotate and set subplot properties (last frame only) -----
     if i == plot_frame_range[1]:
-        for j in range(0,analysis_params['num_categories']):
+        for j in range(0,analysis_params['num_clusters']):
             row = int(j/(plot_params['subplot_dims'][1]))
             col = j - row*(plot_params['subplot_dims'][1])
             # plot field average vs x_var
@@ -193,17 +193,17 @@ def var_clusters_vs_time_subplots(frame_df, analysis_params, plot_params,
                 ax[row,col].set_xscale('linear')
             
             # ---- add title to figures ----
-            if j == analysis_params['num_categories']-1:
+            if j == analysis_params['num_clusters']-1:
                 ax[row,col].set_title(
                     analysis_params['cat_var']+ '_band: '+
-                    '>' + str(round(analysis_params['category_ranges'][j],1)),
+                    '>' + str(round(analysis_params['cluster_ranges'][j],1)),
                     fontsize = plot_params['fontsize']
                     )
             else:       
                 ax[row,col].set_title(
                     analysis_params['cat_var'] + '_band: ' + 
-                    str(round(analysis_params['category_ranges'][j],2)) + ':' + 
-                    str(round(analysis_params['category_ranges'][j+1],2)), 
+                    str(round(analysis_params['cluster_ranges'][j],2)) + ':' + 
+                    str(round(analysis_params['cluster_ranges'][j+1],2)), 
                     fontsize = plot_params['fontsize']
                     )
                 
@@ -257,13 +257,13 @@ def overlay_pts_on_sample(plot_params, reference_df, mask_frame_df,
             zorder = 0, label = 'Other'
             )
     # ---------- add cluster points ----------
-    for i in range(0,analysis_params['num_categories']):
-        category_df = mask_frame_df[mask_frame_df.index.isin(
-            analysis_params['category_indices'][i].values
+    for i in range(0,analysis_params['num_clusters']):
+        cluster_df = mask_frame_df[mask_frame_df.index.isin(
+            analysis_params['cluster_indices'][i].values
             )]
     
         ax.scatter(
-            category_df[['x_pix']]*img_scale, category_df[['y_pix']]*img_scale,
+            cluster_df[['x_pix']]*img_scale, cluster_df[['y_pix']]*img_scale,
             marker = plot_params['marker'], s = plot_params['m_size'], 
             c = plot_params['c'][i], edgecolors = plot_params['c'][i], 
             alpha = plot_params['m_alpha'], 
@@ -303,7 +303,7 @@ def compressibility_check_clusters(frame_df, analysis_params, plot_params,
     
     Args:
         frame_df (dataframe): results from current frame
-        analysis_params (dict): variables used for plot on x,y and categories
+        analysis_params (dict): variables used for plot on x,y and clusters
         plot_params (dict): dictionary of parameters to customize plot
         plot_frame_range (array): min and max frame numbers to plot
         i (int): current frame
@@ -328,20 +328,20 @@ def compressibility_check_clusters(frame_df, analysis_params, plot_params,
             label = plot_params['y_fit_2_label'])
     
              
-    for j in range(0,analysis_params['num_categories']):
+    for j in range(0,analysis_params['num_clusters']):
         
-        category_df = frame_df[frame_df.index.isin(analysis_params['category_indices'][j].values)]
+        cluster_df = frame_df[frame_df.index.isin(analysis_params['cluster_indices'][j].values)]
         
-        if category_df.shape[0] > analysis_params['samples']:
-            category_sample = category_df.sample(
+        if cluster_df.shape[0] > analysis_params['samples']:
+            cluster_sample = cluster_df.sample(
                 n = analysis_params['samples'], random_state = 1
                 )
         else:
-            category_sample = category_df.copy()
+            cluster_sample = cluster_df.copy()
     
         # ---------- add data ----------
-        ax.scatter(category_sample[analysis_params['x_var']],
-                   category_sample[analysis_params['y_var']],
+        ax.scatter(cluster_sample[analysis_params['x_var']],
+                   cluster_sample[analysis_params['y_var']],
                    marker = plot_params['marker'],
                    s = plot_params['m_size'], c = plot_params['c'][j], 
                    edgecolors = plot_params['ec'][j], 
@@ -369,11 +369,11 @@ def compressibility_check_clusters(frame_df, analysis_params, plot_params,
 def var_vs_time_clusters_same_axis(frame_df, analysis_params, plot_params,
                                plot_frame_range, i, ax):
     '''Generate scatter plots of values from points on the sample belonging to
-    categories defined based on an input variable and mask frame
+    clusters defined based on an input variable and mask frame
     
     Args:
         frame_df (dataframe): results from current frame
-        analysis_params (dict): variables used for plot on x,y and categories
+        analysis_params (dict): variables used for plot on x,y and clusters
         plot_params (dict): dictionary of parameters to customize plot
         plot_frame_range (array): min and max frame numbers to plot
         i (int): current frame
@@ -384,21 +384,21 @@ def var_vs_time_clusters_same_axis(frame_df, analysis_params, plot_params,
 
     '''
                    
-    for j in range(0,analysis_params['num_categories']):
+    for j in range(0,analysis_params['num_clusters']):
 
-        category_df = frame_df[frame_df.index.isin(analysis_params['category_indices'][j].values)]
+        cluster_df = frame_df[frame_df.index.isin(analysis_params['cluster_indices'][j].values)]
         
-        if category_df.shape[0] > analysis_params['samples']:
-            category_sample = category_df.sample(
+        if cluster_df.shape[0] > analysis_params['samples']:
+            cluster_sample = cluster_df.sample(
                 n = analysis_params['samples'], random_state = 1
                 )
         else:
-            category_sample = category_df.copy()
+            cluster_sample = cluster_df.copy()
         
         # extract mean of all points in cluster
-        x = category_sample.groupby(
+        x = cluster_sample.groupby(
             analysis_params['x_var'])[analysis_params['x_var']].mean()
-        y = category_sample.groupby(
+        y = cluster_sample.groupby(
             analysis_params['x_var'])[analysis_params['y_var']].mean()
                 
         # ---------- add data ----------
@@ -434,10 +434,10 @@ def norm_stress_strain_rates_vs_time(analysis_params, plot_params,
                                      plot_frame_range, i, ax):
     '''Plot normalized rate of change for two variables (intended to be Eyy 
     and stress), normalized by the value at peak load. The data is collected 
-    and stored in category_series dictionary in a loop for ploting later
+    and stored in cluster_series dictionary in a loop for ploting later
     
     Args: 
-        analysis_params (dict): variables used for plot on x,y and categories
+        analysis_params (dict): variables used for plot on x,y and clusters
         plot_params (dict): dictionary of parameters to customize plot
         plot_frame_range (array): min and max frame numbers to plot
         i (int): current frame
@@ -448,19 +448,19 @@ def norm_stress_strain_rates_vs_time(analysis_params, plot_params,
         
     Notes: 
         Hard-coded summary dictionary to 2 keys for each variable representing
-        clusters where category variable increases or decreases
+        clusters where cluster variable increases or decreases
 
     '''
     # ----- add data and set subplot properties (last frame only) -----
-    for j in range(0,analysis_params['num_categories']):
+    for j in range(0,analysis_params['num_clusters']):
         # extract y variable values at peak load (for normalization)
-        Y1 = analysis_params['category_series']['y1_'+str(j)][analysis_params['peak_frame_index']]#)/analysis_params['dt'][analysis_params['peak_frame_index']]
-        Y2 = analysis_params['category_series']['y2_'+str(j)][analysis_params['peak_frame_index']]#)/analysis_params['dt'][analysis_params['peak_frame_index']]
+        Y1 = analysis_params['cluster_series']['y1_'+str(j)][analysis_params['peak_frame_index']]#)/analysis_params['dt'][analysis_params['peak_frame_index']]
+        Y2 = analysis_params['cluster_series']['y2_'+str(j)][analysis_params['peak_frame_index']]#)/analysis_params['dt'][analysis_params['peak_frame_index']]
         
         #normalize data by value at peak load and compute relative change
         x_plot = analysis_params['x_series'][1:]
-        y_plot = np.abs(np.diff(analysis_params['category_series']['y1_'+str(j)]/Y1))#analysis_params['dt'] / Y1 
-        y_plot2 = np.abs(np.diff(analysis_params['category_series']['y2_'+str(j)]/Y2))#analysis_params['dt'] / Y2 
+        y_plot = np.abs(np.diff(analysis_params['cluster_series']['y1_'+str(j)]/Y1))#analysis_params['dt'] / Y1 
+        y_plot2 = np.abs(np.diff(analysis_params['cluster_series']['y2_'+str(j)]/Y2))#analysis_params['dt'] / Y2 
         
         # plot first variable
         ax.plot(x_plot, y_plot, linestyle = plot_params['linestyle'], 

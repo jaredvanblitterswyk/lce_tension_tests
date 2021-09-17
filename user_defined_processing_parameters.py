@@ -5,6 +5,7 @@ USER-DEFINED ANALYSIS AND PLOT PARAMETERS
 import numpy as np
 import matplotlib.pyplot as plt
 import os
+from matplotlib.colors import LinearSegmentedColormap
 
 # ============================================================================
 # -------------- USER INPUT ----------------
@@ -41,7 +42,7 @@ peak_frame_index = 5 # frame where load is max for normalizing stress/strain rel
 img_scale = 0.02724 # image scale (mm/pix)
 # cluster points using ML
 clusters_ml = True
-num_clusters = 25
+num_clusters = 30
 scale_features = False
 cluster_args = {}
 cluster_args = {}
@@ -75,6 +76,13 @@ all_plot_options = [
                    'norm_stress_strain_rates_vs_time',
                    'var_vs_time_clusters_same_axis'
                    ]
+
+cmap_name = 'lapaz' # custom colormap stored in mpl_styles
+cbar_levels = 25 # colorbar levels
+
+# load in colormap and define plot style
+cm_data = np.loadtxt('Z:/Python/mpl_styles/'+cmap_name+'.txt')
+custom_map = LinearSegmentedColormap.from_list('custom', np.flipud(cm_data))
 
 # ----- Set general plot parameters imported to all plot functions -----
 # NOTE: can override for select plots using additional plot param dictionaries

@@ -116,15 +116,15 @@ def return_points_in_all_frames(data_df, last_frame_df):
     
     return data_all_df
 
-def find_points_in_categories(num_categories, category_ranges, 
-                              category_var, frame_df):
-    '''Find indices of points corresponding to each defined category 
+def find_points_in_clusters(num_categories, cluster_ranges, 
+                              cluster_var, frame_df):
+    '''Find indices of points corresponding to each defined cluster 
         (based on variable passed to function - typ. axial strain)
     
     Args: 
         num_categories (int): number of categories to split field data into
-        category_ranges (dict): upper and lower bounds of category ranges
-        category_var (string): name of variable to split data on
+        cluster_ranges (dict): upper and lower bounds of cluster ranges
+        cluster_var (string): name of variable to split data on
         frame_df (dataframe): dataframe with full-field data for a given frame
             
     Returns:
@@ -136,21 +136,21 @@ def find_points_in_categories(num_categories, category_ranges,
     # --- loop through all categories, find points and plot ---
     for j in range(0,num_categories):
         if j == num_categories-1:
-            category_band_df = frame_df[
-                    frame_df[category_var] >= category_ranges[j]
+            cluster_df = frame_df[
+                    frame_df[cluster_var] >= cluster_ranges[j]
                 ]   
         else:
-            category_band_df = frame_df[(
-                    frame_df[category_var] >= category_ranges[j]
+            cluster_df = frame_df[(
+                    frame_df[cluster_var] >= cluster_ranges[j]
                     ) & (
-                    frame_df[category_var] < category_ranges[j+1]
+                    frame_df[cluster_var] < cluster_ranges[j+1]
                 )]
         # store index objects in dictionary
-        indices_dict[j] = category_band_df.index
+        indices_dict[j] = cluster_df.index
         
     return indices_dict
 
-def find_points_in_categories_cluster(num_clusters, frame_df):
+def find_points_in_cluster_ml(num_clusters, frame_df):
     '''Find indices of points corresponding to clusters defined from using a 
         clustering algorithm 
     
@@ -164,9 +164,9 @@ def find_points_in_categories_cluster(num_clusters, frame_df):
     indices_dict = {}
         
     # --- loop through all categories, find points and plot ---
-    for j in range(0,num_categories):
-        category_band_df = frame_df['cluster'] = j
-        indices_dict[j] = category_band_df.index
+    for j in range(0,num_clusters):
+        cluster_df = frame_df[frame_df['cluster'] == j]
+        indices_dict[j] = cluster_df.index
         
     return indices_dict
 
