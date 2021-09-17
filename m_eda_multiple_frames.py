@@ -162,7 +162,7 @@ if 'var_clusters_vs_time_subplots' in udp.plt_to_generate:
     anlys_vcts = udp.anlys_params_var_clusters_subplots
     
     if udp.clusters_ml:
-        cluster_indices = find_points_in_categories_cluster(udp.num_clusters, 
+        cluster_indices = find_points_in_clusters_ml(udp.num_clusters, 
                                                              last_frame_df)
         
     else:
@@ -171,16 +171,16 @@ if 'var_clusters_vs_time_subplots' in udp.plt_to_generate:
         min_cluster_band = round(mask_frame_df[anlys_vcts['cat_var']].min(),2)
         
         cluster_ranges = np.linspace(min_cluster_band, max_cluster_band, 
-                                      anlys_vcts['num_categories']) 
+                                      anlys_vcts['num_clusters']) 
     
         # find indices of points on sample belonging to each cluster
-        cluster_indices = find_points_in_categories(anlys_vcts['num_categories'], 
+        cluster_indices = find_points_in_clusters(anlys_vcts['num_clusters'], 
                                                      cluster_ranges, 
                                                      anlys_vcts['cat_var'], 
                                                      mask_frame_df
                                                      )
     
-    # add categories to analysis parameters dictionary
+    # add clusters to analysis parameters dictionary
     anlys_vcts['cluster_indices'] = cluster_indices
     anlys_vcts['cluster_ranges'] = cluster_ranges
     
@@ -198,16 +198,16 @@ if 'compressibility_check' in udp.plt_to_generate:
         min_cluster_band = round(mask_frame_df[anlys_cc['cat_var']].min(),2)
         
         cluster_ranges = np.linspace(min_cluster_band, max_cluster_band, 
-                                      anlys_cc['num_categories']) 
+                                      anlys_cc['num_clusters']) 
     
         # find indices of points on sample belonging to each cluster
-        cluster_indices = find_points_in_categories(anlys_cc['num_categories'], 
+        cluster_indices = find_points_in_clusters(anlys_cc['num_clusters'], 
                                                      cluster_ranges, 
                                                      anlys_cc['cat_var'], 
                                                      mask_frame_df
                                                      )
     
-    # add categories to analysis parameters dictionary
+    # add clusters to analysis parameters dictionary
     anlys_cc['cluster_indices'] = cluster_indices
     anlys_cc['cluster_ranges'] = cluster_ranges
     
@@ -216,7 +216,7 @@ if 'overlay_pts_on_sample_var' in udp.plt_to_generate:
     anlys_opsv = udp.anlys_params_pts_overlay_var
     
     if udp.clusters_ml:
-        cluster_indices = find_points_in_categories_cluster(udp. num_clusters, 
+        cluster_indices = find_points_in_clusters_cluster(udp. num_clusters, 
                                                              last_frame_df)
         
     else:
@@ -225,16 +225,16 @@ if 'overlay_pts_on_sample_var' in udp.plt_to_generate:
         min_cluster_band = round(mask_frame_df[anlys_opsv['cat_var']].min(),2)
         
         cluster_ranges = np.linspace(min_cluster_band, max_cluster_band, 
-                                      anlys_opsv['num_categories']) 
+                                      anlys_opsv['num_clusters']) 
     
         # find indices of points on sample belonging to each cluster
-        cluster_indices = find_points_in_categories(anlys_opsv['num_categories'], 
+        cluster_indices = find_points_in_clusters(anlys_opsv['num_clusters'], 
                                                      cluster_ranges, 
                                                      anlys_opsv['cat_var'], 
                                                      mask_frame_df
                                                      )
     
-    # add categories to analysis parameters dictionary
+    # add clusters to analysis parameters dictionary
     anlys_opsv['cluster_indices'] = cluster_indices
     anlys_opsv['cluster_ranges'] = cluster_ranges
     
@@ -248,12 +248,12 @@ if 'overlay_pts_on_sample_relative' in udp.plt_to_generate:
     
     diff_df[anlys_opsr['cat_var']] = last_frame_df[anlys_opsr['var_interest']] - first_frame_rel_df[anlys_opsr['var_interest']]
             
-    cluster_indices = find_points_in_categories(anlys_opsr['num_categories'],
+    cluster_indices = find_points_in_clusters(anlys_opsr['num_clusters'],
                                                  cluster_ranges, 
                                                  anlys_opsr['cat_var'],
                                                  diff_df)
     
-    # add categories to analysis parameters dictionary
+    # add clusters to analysis parameters dictionary
     anlys_opsr['cluster_indices'] = cluster_indices
     anlys_opsr['cluster_ranges'] = cluster_ranges
     
@@ -268,12 +268,12 @@ if 'var_vs_time_clusters_same_axis' in udp.plt_to_generate:
     
     diff_df[anlys_vtcsa['cat_var']] = last_frame_df[anlys_vtcsa['y_var']] - first_frame_rel_df[anlys_vtcsa['y_var']]
             
-    cluster_indices = find_points_in_categories(anlys_vtcsa['num_categories'],
+    cluster_indices = find_points_in_clusters(anlys_vtcsa['num_clusters'],
                                                  cluster_ranges, 
                                                  anlys_vtcsa['cat_var'],
                                                  diff_df)
     
-    # add categories to analysis parameters dictionary
+    # add clusters to analysis parameters dictionary
     anlys_vtcsa['cluster_indices'] = cluster_indices
     anlys_vtcsa['cluster_ranges'] = cluster_ranges
     
@@ -289,12 +289,12 @@ if 'norm_stress_strain_rates_vs_time' in udp.plt_to_generate:
     
     diff_df[anlys_nssrt['cat_var']] = last_frame_df[anlys_nssrt['y_var']] - first_frame_rel_df[anlys_nssrt['y_var']]
             
-    cluster_indices = find_points_in_categories(anlys_nssrt['num_categories'],
+    cluster_indices = find_points_in_clusters(anlys_nssrt['num_clusters'],
                                                  cluster_ranges, 
                                                  anlys_nssrt['cat_var'],
                                                  diff_df)
     
-    # add categories to analysis parameters dictionary
+    # add clusters to analysis parameters dictionary
     anlys_nssrt['cluster_indices'] = cluster_indices
     anlys_nssrt['cluster_ranges'] = cluster_ranges
     
@@ -490,7 +490,7 @@ for i in range(udp.plt_frame_range[0],udp.plt_frame_range[1]+1):
             anlys_nssrt['dt'] = dt
         
         # ----- compile data for each cluster and each frame -----           
-        for j in range(0, anlys_nssrt['num_categories']):
+        for j in range(0, anlys_nssrt['num_clusters']):
             cluster_df = frame_df[frame_df.index.isin(anlys_nssrt['cluster_indices'][j].values)]
             if j == 0:
                 #extract mean of x variable only once per frame
