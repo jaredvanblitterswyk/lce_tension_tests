@@ -32,7 +32,7 @@ dir_root_local = 'C:/Users/jcv/Documents'
 # extensions to access sub-directories
 batch_ext = 'lcei_003'
 mts_ext = 'mts_data'
-sample_ext = '001_t05_r00'
+sample_ext = '009_t02_r01'
 gom_ext = 'gom_results'
 time_map_ext = 'frame_time_mapping'
 
@@ -48,14 +48,12 @@ except:
 # ----- define constants -----
 spec_id = batch_ext+'_'+sample_ext # full specimen id
 Nx, Ny = 2448, 2048 # pixel resolution in x, y axis
-img_scale = 0.02724 # mm/pix
+img_scale = 0.02729 # mm/pix
 t = 1 # thickness of sample [mm]
 orientation = 'vertical'
 cmap_name = 'lajolla' # custom colormap stored in mpl_styles
 xsection_filename = batch_ext+'_'+sample_ext+'_section_coords.csv'
 mask_side_length = 0.5 # max side length of triangles in DeLauny triangulation
-cbar_levels = 25 # colorbar levels
-nth_frames = 5 # sub sampling images where correlation data is available
 mts_columns = ['time', 'crosshead', 'load', 'trigger', 'cam_44', 'cam_43', 'trig_arduino']
 mts_col_dtypes = {'time':'float',
               'crosshead':'float', 
@@ -64,7 +62,7 @@ mts_col_dtypes = {'time':'float',
               'cam_44': 'int64',
               'cam_43': 'int64',
               'trig_arduino': 'int64'}
-coord_trans_applied = True
+coord_trans_applied = False
 
 # ---- calculate quantities and collect files to process ---
 # collect all csv files in gom results directory
@@ -134,6 +132,13 @@ coords_df['y_pix'] = np.reshape(yy_pix_crop,(Nxc*Nyc,))
 disp_labels = ['ux', 'uy', 'uz']
 strain_labels = ['Exx', 'Eyy', 'Exy']
 
+processing_params = {}
+processing_params['mask_side_length'] = mask_side_length
+processing_params['spacing'] = [dx, dy]
+processing_params['image_scale'] = img_scale
+processing_params['image_dims'] = [Nx, Ny]
+processing_params['coord_trans_applied'] = coord_trans_applied
+
 for i in range(0,len(mts_df)):
     start_time = time.time()
     # extract frame number and display
@@ -141,13 +146,10 @@ for i in range(0,len(mts_df)):
     #frame_no = files_gom[i][35:-10] 
     print('Processing frame:' + str(frame_no))
     
-    spacing = [dx, dy]
-    
     # compute interpolated strains and displacements in reference coordinates
     disp, Eij, Rij, area_mask, triangle_mask = interp_and_calc_strains(
-        dir_gom_results, files_gom[i], mask_side_length, spacing, disp_labels, 
-        strain_labels, xx_crop, yy_crop, coord_trans_applied
-        )
+        dir_gom_results, files_gom[i], processing_params, disp_labels, 
+        strain_labels, xx_crop, yy_crop)
     
     # compute strain gradient to find outliers
     de_dy, de_dx = np.gradient(Eij['Eyy'])

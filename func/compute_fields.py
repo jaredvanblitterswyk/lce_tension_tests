@@ -163,8 +163,8 @@ def mask_interp_region(triang, df, mask_side_len = 0.2):
             
     return mask, area_mask
 
-def interp_and_calc_strains(dir_results, file, mask_side_length, spacing, disp_labels, 
-                            strain_labels, xx, yy, coord_trans_applied):
+def interp_and_calc_strains(dir_results, file, processing_params, disp_labels, 
+                            strain_labels, xx, yy):
     '''Interpolate measurement points to pixel coords and compute disp and strain fields
     
     Args: 
@@ -189,23 +189,29 @@ def interp_and_calc_strains(dir_results, file, mask_side_length, spacing, disp_l
     '''
     
     # load in data
-    df = pd.read_csv(os.path.join(dir_results,file), skiprows = 5)
+    df = pd.read_csv(os.path.join(dir_results, file), skiprows = 5)
     
     df = df.dropna(axis = 0)
-    df = df.reset_index(drop=True)
+    df = df.reset_index(drop = True)
+    
+    Nx = processing_params['image_dims'][0]
+    Ny = processing_params['image_dims'][1]
+    scale = processing_params['image_scale']
+    
     # transform GOM coords back to reference configuration
-    if coord_trans_applied:
+    if processing_params['coord_trans_applied']:
         X = df['x.1'] - df['displacement_x']
         Y = df['y.1'] - df['displacement_y']
     else:
-        X = df['x']+(Nx/2)*img_scale - df['displacement_x']
-        Y = df['y']+(Ny/2)*img_scale - df['displacement_y']
+        X = df['x']+(Nx/2)*scale - df['displacement_x']
+        Y = df['y']+(Ny/2)*scale - df['displacement_y']
       
     # define triangulation interpolation on x and y coordinates frm GOM
     # in reference coordinates
     triang = tri.Triangulation(X, Y)
     # get mask
-    triangle_mask, area_mask = mask_interp_region(triang, df, mask_side_length)
+    triangle_mask, area_mask = mask_interp_region(triang, df, 
+                                                  processing_params['mask_side_length'])
     # apply mask
     triang.set_mask(np.array(triangle_mask) > 0)
     
@@ -225,7 +231,7 @@ def interp_and_calc_strains(dir_results, file, mask_side_length, spacing, disp_l
         disp[component] = interpolator(xx, yy)
     
     # calculate strains and rotations from deformation gradient            
-    Eij, Rij = calculateEijRot(disp, strain_labels, spacing)
+    Eij, Rij = calculateEijRot(disp, strain_labels, processing_params['spacing'])
     
     return disp, Eij, Rij, area_mask, triangle_mask
 
