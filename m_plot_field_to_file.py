@@ -25,7 +25,7 @@ dir_root = 'Z:/Experiments/lce_tension'
 # extensions to access sub-directories
 batch_ext = 'lcei_003'
 mts_ext = 'mts_data'
-sample_ext = '001_t05_r00'
+sample_ext = '009_t02_r02'
 gom_ext = 'gom_results'
 orientation = 'vertical'
 
@@ -59,7 +59,7 @@ dir_nu_folder = os.path.join(dir_figs_root,'nu_fields')
 # ----- define constants -----
 spec_id = batch_ext+'_'+sample_ext # full specimen id
 Ny, Nx = 2048, 2448 # pixel resolution in x, y axis
-img_scale = 0.02724 # mm/pix
+img_scale = 0.02729 # mm/pix
 t = 1.0 # thickness of sample [mm]
 cmap_name = 'lapaz' # custom colormap stored in mpl_styles
 cbar_levels = 25 # colorbar levels
@@ -88,25 +88,25 @@ plot_params = {'figsize': (2,4),
                'save_fig': True
                }   
 plot_var_specific = {'Exx': {
-                'vlims': [-0.2, 0], 'dir_save_figs': dir_strain_folder
+                'vlims': [-0.08, 0], 'dir_save_figs': dir_strain_folder
               },
               'Eyy': {
-                  'vlims': [0.35, 0.6], 'dir_save_figs': dir_strain_folder
+                  'vlims': [0, 0.22], 'dir_save_figs': dir_strain_folder
               },
               'Exy': {
-                  'vlims': [-0.05, 0.05], 'dir_save_figs': dir_strain_folder
+                  'vlims': [-0.04, 0.04], 'dir_save_figs': dir_strain_folder
               },
               'ux': {
-                  'vlims': [-1, 1], 'dir_save_figs': dir_disp_folder
+                  'vlims': [-0.8, 0.8], 'dir_save_figs': dir_disp_folder
               },
               'uy': {
-                  'vlims': [0, 16], 'dir_save_figs': dir_disp_folder
+                  'vlims': [0, 6], 'dir_save_figs': dir_disp_folder
               },
               'uz': {
-                  'vlims': [0, 4], 'dir_save_figs': dir_disp_folder
+                  'vlims': [-0.4, 0.4], 'dir_save_figs': dir_disp_folder
               },
               'R': {
-                  'vlims': [-4, 4], 'dir_save_figs': dir_rotation_folder
+                  'vlims': [-5, 6], 'dir_save_figs': dir_rotation_folder
               },
               'nu': {
                   'vlims': [0, 0.5], 'dir_save_figs': dir_nu_folder
@@ -115,7 +115,6 @@ plot_var_specific = {'Exx': {
 
 #%%
 # load in data
-frame_count = 0
 for i in range(0,len(files_pkl)):
     print('Processing frame: '+str(i))
     save_filename = 'results_df_frame_'+"{:02d}".format(i)+'.pkl'
@@ -138,7 +137,7 @@ for i in range(0,len(files_pkl)):
 
     plt.close('all')
     print('Plotting fields for frame: '+str(i))
-    for j in ['Eyy']:#['ux','uy','uz','Exx','Exy','Eyy','R', 'nu']:
+    for j in ['ux','uy','uz','Exx','Exy','Eyy','R', 'nu']:
         
         # filter data to plot
         xx = np.array(frame_df[['x_mm']])
