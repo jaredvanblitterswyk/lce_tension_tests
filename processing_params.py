@@ -1,17 +1,37 @@
 # -*- coding: utf-8 -*-
 """
 USER-DEFINED ANALYSIS AND PLOT PARAMETERS
+
+All analysis and plotting parameters defined here are imported when generating
+EDA plots in 'm_eda.py'
+
+This script groups similar parameters together in the following order:
+    i) configuration - data directories, data import parameters
+    ii) processing - sample orientation, key frame definition 
+        (start, end, cluster mask, etc.)
+    iii) plotting - all plots call on a general set of parameters defined in 
+        'plt_params_general'. Plot specific variables, which can override the
+        general parameters are defined in the plot-specific parameters section
+    iv) plot-specific parameters - customize plot features for each plot and
+        specify relevant analysis parameters
+    v) calculated inputs - DO NOT MODIFY
+        
+
+Author: Jared Van Blitterswyk
+Last updated: 27 Sept 2021
+
 """
+# ============================================================================
+# -------------- USER INPUT ----------------
+# ============================================================================
+# ---------- CONFIGURATION ----------
+# ----------------------------------------------------------------------------
+# import libraries
 import numpy as np
 import matplotlib.pyplot as plt
 import os
 from matplotlib.colors import LinearSegmentedColormap
 
-# ============================================================================
-# -------------- USER INPUT ----------------
-# ============================================================================
-# ---------- Data directories ----------
-# ----------------------------------------------------------------------------
 dir_root = 'Z:/Experiments/lce_tension'
 # extensions to access sub-directories
 batch_ext = 'lcei_003'
@@ -27,7 +47,7 @@ mts_col_dtypes = {'time':'float', 'crosshead':'float', 'load':'float',
               'trigger': 'int64', 'cam_44': 'int64', 'cam_43': 'int64',
               'trig_arduino': 'int64'}
 # ----------------------------------------------------------------------------
-# ---------- Processing options ----------
+# ---------- PROCESSING ----------
 # ----------------------------------------------------------------------------
 load_multiple_frames = False # True if one wants to load all frames into memory simultaneously
 orientation = 'vertical' # Orientation of pulling axis w.r.t camera
@@ -42,14 +62,15 @@ peak_frame_index = 5 # frame where load is max for normalizing stress/strain rel
 img_scale = 0.02724 # image scale (mm/pix)
 # cluster points using ML
 clusters_ml = True
-num_clusters = 30
+num_clusters = 15
 scale_features = False
 cluster_args = {}
 cluster_args = {}
-cluster_args['n_init']: 3 
+cluster_args['n_init']: 5 
 cluster_args['max_iter']: 400
+cluster_args['init_params']: 'random'
 # ----------------------------------------------------------------------------
-# -------- Plotting ---------
+# -------- PLOTTING ---------
 # ----------------------------------------------------------------------------
 # -------- Specify which plots to generate ----------
 # NOTE: 'all plot options' only for reference and not called in main script
@@ -65,6 +86,7 @@ plt_to_generate = [
                    'var_vs_time_clusters_same_axis'
                    ]
 
+# this list is not used but includes all available plots
 all_plot_options = [
                     'boxplot',
                    'histogram',
@@ -124,7 +146,7 @@ c1 = ['#706677']
 plt.style.use('Z:/Python/mpl_styles/stg_plot_style_1.mplstyle')
 
 # ----------------------------------------------------------
-# ----- DEFINE PLOT/ANALYSIS PARAMETERS FOR SPECIFIC PLOTS
+# ---------- PLOT SPECIFIC PARAMETERS ----------
 # ----------------------------------------------------------
 # ----------------------------------------------------------------------------
 # ----- HISTOGRAM -----

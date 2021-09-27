@@ -1,8 +1,39 @@
 # -*- coding: utf-8 -*-
 """
-Created on Fri Mar 12 10:45:18 2021
+# ----------------------------------------------------------------------------
+EXPLORATORY DATA ANALYSIS OF DIC DATA FROM TENSION TESTING OF LCES
+# ----------------------------------------------------------------------------
 
-@author: jcv
+NOTE: ALL ANALYSIS AND PLOTTING PARAMETERS MUST BE DEFINED IN 
+'processing_params.py'
+
+Description:
+Run this scritp generates diagnostic and analytic figures from DIC displacement
+and strain fields tailored to tension testing of polydomain LCEs. 
+Currently, the following plotting capabilities are included: 
+    (note: all fields are generated using a 'flag' system where the
+figure name must be specfied in a list defined in 'plt_to_generate' from the
+'processing_params.py' script.)
+    
+    Plots:
+        i) 'boxplot' - of any field variable vs time
+        ii) 'histogram' - of any field variable vs time
+        iii) 'global_stress_strain'
+        iv) 'var_clusters_vs_time_subplots' - response of points in clusters 
+                vs time - clusters defined on any specified variable (typ. Eyy)
+                defined in indiviaul axes for each cluster
+        v) 'overlay_pts_on_sample_var' - overlay cluster locations on sample
+        vi) 'overlay_pts_on_sample_relative' - overlay cluster locations on 
+                sample corresponding to increasing/decreasing trend in time
+        vii) 'compressibility_check' - plot Exx vs Eyy to check compressibility
+        viii) 'norm_stress_strain_rates_vs_time' - normalized rate of change
+                in stress and strain for 2 clusters (inc/dec) vs time
+        ix) 'var_vs_time_clusters_same_axis'- overlay cluster response on one
+                set of axes
+                
+Author: Jared Van Blitterswyk
+Last updated: 27 Sept 2021
+
 """
 import os
 import sys
