@@ -175,9 +175,8 @@ anlys_params_glob_ss = {
 # ----------------------------------------------------------------------------
 # ----- VAR_CLUSTERS_VS_TIME_SUBPLOTS -----
 # ----------------------------------------------------------------------------
-num_categories = 6
 subplot_cols = 3
-subplot_dims = [int(np.floor((num_categories-1)/subplot_cols)+1), subplot_cols]
+subplot_dims = [int(np.floor((num_clusters-1)/subplot_cols)+1), subplot_cols]
         
 plt_params_var_clusters_subplots = {
                     'figsize': (4,4),
@@ -192,7 +191,7 @@ anlys_params_var_clusters_subplots = {
                     'x_var': 'time',
                     'y_var': 'Eyy',
                     'cat_var': 'Eyy',
-                    'num_categories': num_categories,
+                    'num_clusters': num_clusters,
                     'samples': 8000,
                     'mask_frame': mask_frame,
                     }
@@ -214,7 +213,7 @@ plt_params_pts_overlay_var = {
 anlys_params_pts_overlay_var = {
                     'var_interest': 'Eyy',
                     'cat_var': 'Eyy',
-                    'num_categories': 6
+                    'num_clusters': 6
     }
 # ----------------------------------------------------------------------------
 # ----- OVERLAY_PTS_ON_SAMPLE_RELATIVE -----
@@ -233,7 +232,7 @@ plt_params_pts_overlay_relative = {'figsize': (2,4),
 anlys_params_pts_overlay_relative = {
                     'var_interest': 'Eyy',
                     'cat_var': 'dEyy/dt',
-                    'num_categories': 2
+                    'num_clusters': 2
                     }
 # ----------------------------------------------------------------------------
 # ----- COMPRESSIBILITY_CHECK -----
@@ -263,7 +262,7 @@ anlys_params_comp_check = {
                     'x_var': 'Eyy',
                     'y_var': 'Exx',
                     'cat_var': 'Eyy',
-                    'num_categories': num_categories,
+                    'num_clusters': num_clusters,
                     'samples': 8000,
                     'mask_frame': mask_frame,
                     'x_fit': x_fit,
@@ -289,7 +288,7 @@ anlys_params_var_vs_time_clusters_sa = {
                     'y_var': 'Eyy', 
                     'cat_var': 'dEyy/dt',
                     'samples': 8000,
-                    'num_categories': 2}
+                    'num_clusters': 2}
 # ----------------------------------------------------------------------------
 # ----- NORM_STRESS_STRAIN_RATES_VS_TIME -----
 # ----------------------------------------------------------------------------
@@ -311,7 +310,7 @@ anlys_params_norm_ss_rates_vs_time = {
                     'y_var': 'Eyy',
                     'y_var_2': 'stress_mpa',
                     'cat_var': 'Eyy',
-                    'num_categories': 2,
+                    'num_clusters': 2,
                     'normalize_y': False,
                     'peak_frame_index': peak_frame_index}
 

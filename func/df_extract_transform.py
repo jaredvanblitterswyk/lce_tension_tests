@@ -116,13 +116,13 @@ def return_points_in_all_frames(data_df, last_frame_df):
     
     return data_all_df
 
-def find_points_in_clusters(num_categories, cluster_ranges, 
+def find_points_in_clusters(num_clusters, cluster_ranges, 
                               cluster_var, frame_df):
     '''Find indices of points corresponding to each defined cluster 
         (based on variable passed to function - typ. axial strain)
     
     Args: 
-        num_categories (int): number of categories to split field data into
+        num_clusters (int): number of clusters to split field data into
         cluster_ranges (dict): upper and lower bounds of cluster ranges
         cluster_var (string): name of variable to split data on
         frame_df (dataframe): dataframe with full-field data for a given frame
@@ -133,9 +133,9 @@ def find_points_in_clusters(num_categories, cluster_ranges,
     # define empty dictionary to store indices for each cluster
     indices_dict = {}
         
-    # --- loop through all categories, find points and plot ---
-    for j in range(0,num_categories):
-        if j == num_categories-1:
+    # --- loop through all clusters, find points and plot ---
+    for j in range(0,num_clusters):
+        if j == num_clusters-1:
             cluster_df = frame_df[
                     frame_df[cluster_var] >= cluster_ranges[j]
                 ]   
@@ -150,7 +150,7 @@ def find_points_in_clusters(num_categories, cluster_ranges,
         
     return indices_dict
 
-def find_points_in_cluster_ml(num_clusters, frame_df):
+def find_points_in_clusters_ml(num_clusters, frame_df):
     '''Find indices of points corresponding to clusters defined from using a 
         clustering algorithm 
     
@@ -163,7 +163,7 @@ def find_points_in_cluster_ml(num_clusters, frame_df):
     '''
     indices_dict = {}
         
-    # --- loop through all categories, find points and plot ---
+    # --- loop through all clusters, find points and plot ---
     for j in range(0,num_clusters):
         cluster_df = frame_df[frame_df['cluster'] == j]
         indices_dict[j] = cluster_df.index
