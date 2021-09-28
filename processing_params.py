@@ -63,12 +63,13 @@ img_scale = 0.02724 # image scale (mm/pix)
 # cluster points using ML
 clusters_ml = True
 num_clusters = 15
-scale_features = False
+scale_features = True
 cluster_args = {}
-cluster_args = {}
-cluster_args['n_init']: 5 
+cluster_args['n_init']: 7 
 cluster_args['max_iter']: 400
 cluster_args['init_params']: 'random'
+cluster_args['random_state']: 1
+cluster_args['warm_start']: False
 # ----------------------------------------------------------------------------
 # -------- PLOTTING ---------
 # ----------------------------------------------------------------------------
@@ -133,10 +134,32 @@ plt_params_general = {
 
 # ---------- Colour palettes used for 7, 2 and 1 series plots ----------
 # colour and edge colour arrays (hard coded to 7 or less strain bands)
+'''
 ec = ['#917265', '#896657', '#996f71', '#805a66', '#453941',
       '#564e5c', '#32303a']
 c = ['#d1c3bd', '#ccb7ae', '#b99c9d', '#a6808c', '#8b7382',
      '#706677', '#565264']
+'''
+
+colors = ['#1a0c64', '#1d17cf', '#202071', '#222978', '#24317e', '#263a84',
+          '#284289', '#2a4b8e', '#2d5293', '#305b97', '#33629b', '#38699e',
+          '#3d72a0', '#4379a2', '#4b80a3', '#5386a4', '#5c8da3', '#6692a2',
+          '#7097a0', '#7b9b9e', '#869e9b', '#91a298', '#9ca596', '#a8a895',
+          '#b5ad96', '#c3b39a', '#d2bba2', '#dfc5ad', '#ebcfbb', '#f4d9c9',
+          '#f9e2d8', '#fcebe6']
+
+edge_colors = ['#110163', '#100a5c', '#0b0b63', '#0c1570', '#112073', '#112a85',
+               '#123187', '#0b378f', '#103f91', '#0f4796', '#13529e', '#18599e',
+               '#1f64a1', '#226ba3', '#2a73a3', '#2b79a6', '#3480a3', '#438aa3',
+               '#4b93a3', '#46979e', '#43a398', '#6da384', '#88a376', '#a8a86f',
+               '#b5a677', '#c4a26c', '#d1a87b', '#deb187', '#ebad81', '#f2b591',
+               '#faa987', '#fa9e82']
+
+idx = np.round(np.linspace(0, len(colors) - 1, num_clusters)).astype(int)
+
+ec = np.array(edge_colors)[idx]
+c = np.array(colors)[idx]
+
 ec2 = ['#917265', '#564e5c']
 c2 = ['#d1c3bd', '#706677']
 ec1 = ['#564e5c']
@@ -215,7 +238,7 @@ anlys_params_var_clusters_subplots = {
                     'cat_var': 'Eyy',
                     'num_clusters': num_clusters,
                     'samples': 8000,
-                    'mask_frame': mask_frame,
+                    'mask_frame': end_frame,
                     }
 # ----------------------------------------------------------------------------
 # ----- OVERLAY_PTS_ON_SAMPLE_VAR -----
@@ -235,7 +258,7 @@ plt_params_pts_overlay_var = {
 anlys_params_pts_overlay_var = {
                     'var_interest': 'Eyy',
                     'cat_var': 'Eyy',
-                    'num_clusters': 6
+                    'num_clusters': num_clusters
     }
 # ----------------------------------------------------------------------------
 # ----- OVERLAY_PTS_ON_SAMPLE_RELATIVE -----
