@@ -193,19 +193,24 @@ def var_clusters_vs_time_subplots(frame_df, analysis_params, plot_params,
                 ax[row,col].set_xscale('linear')
             
             # ---- add title to figures ----
-            if j == analysis_params['num_clusters']-1:
-                ax[row,col].set_title(
-                    analysis_params['cat_var']+ '_band: '+
-                    '>' + str(round(analysis_params['cluster_ranges'][j],1)),
-                    fontsize = plot_params['fontsize']
-                    )
-            else:       
-                ax[row,col].set_title(
-                    analysis_params['cat_var'] + '_band: ' + 
-                    str(round(analysis_params['cluster_ranges'][j],2)) + ':' + 
-                    str(round(analysis_params['cluster_ranges'][j+1],2)), 
-                    fontsize = plot_params['fontsize']
-                    )
+            if not analysis_params['ml_clusters']:
+                if j == analysis_params['num_clusters']-1:
+                    ax[row,col].set_title(
+                        analysis_params['cat_var']+ '_band: '+
+                        '>' + str(round(analysis_params['cluster_ranges'][j],1)),
+                        fontsize = plot_params['fontsize']
+                        )
+                else:       
+                    ax[row,col].set_title(
+                        analysis_params['cat_var'] + '_band: ' + 
+                        str(round(analysis_params['cluster_ranges'][j],2)) + ':' + 
+                        str(round(analysis_params['cluster_ranges'][j+1],2)), 
+                        fontsize = plot_params['fontsize']
+                        )
+            else:
+                ax[row,col].set_title('Cluster: '+ str(j), 
+                        fontsize = plot_params['fontsize']
+                        )
                 
             # annotate showing mask frame with vertical dashed line
             _, max_ylim = ax[row,col].get_ylim()

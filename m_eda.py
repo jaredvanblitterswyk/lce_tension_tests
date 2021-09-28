@@ -32,7 +32,7 @@ figure name must be specfied in a list defined in 'plt_to_generate' from the
                 set of axes
                 
 Author: Jared Van Blitterswyk
-Last updated: 27 Sept 2021
+Last updated: 28 Sept 2021
 
 """
 import os
@@ -47,7 +47,7 @@ import pandas as pd
 import numpy as np
 import matplotlib as mpl
 import matplotlib.pyplot as plt
-import user_defined_processing_parameters as udp
+import processing_params as udp
 from func.plot_field_contour_save import *
 from func.create_eda_plots import (create_simple_scatter, 
                                    histogram_vs_frame, 
@@ -149,6 +149,7 @@ print('-----------------------------------------------')
 
 # define clusters using ML
 if udp.clusters_ml:
+    print('Clustering points using Bayesian Gaussian mixture model')
     last_frame_df = define_clusters_ml(udp.num_clusters, last_frame_df, 
                                        udp.scale_features, udp.cluster_args)
     
@@ -164,7 +165,7 @@ if udp.clusters_ml:
         'grid_alpha': 0.5,
         'dpi': 300, 'cmap': udp.custom_map,
         'xlims': [24, 40],
-        'ylims': [0, 32],#m.ceil(Ny*img_scale)],
+        'ylims': [0, 32],
         'tight_layout': True, 
         'hide_labels': False, 
         'show_fig': True,
@@ -174,7 +175,7 @@ if udp.clusters_ml:
     plot_params_cluster['vmax'] = udp.num_clusters
     plot_params_cluster['var_name'] = 'Cluster No.'
     plot_field_contour_save(xx, yy, zz, plot_params_cluster, udp.frame_max)
-    
+
     plot_params_cluster['vmin'] = 0
     plot_params_cluster['vmax'] = 0.4
     plot_params_cluster['var_name'] = 'Eyy'
@@ -195,6 +196,7 @@ if 'var_clusters_vs_time_subplots' in udp.plt_to_generate:
     if udp.clusters_ml:
         cluster_indices = find_points_in_clusters_ml(udp.num_clusters, 
                                                              last_frame_df)
+        anlys_vcts['ml_clusters'] = True
         
     else:
         # calculate strain range bounds
@@ -210,18 +212,21 @@ if 'var_clusters_vs_time_subplots' in udp.plt_to_generate:
                                                      anlys_vcts['cat_var'], 
                                                      mask_frame_df
                                                      )
+        anlys_vcts['cluster_ranges'] = cluster_ranges
+        anlys_vcts['ml_clusters'] = False
     
-    # add clusters to analysis parameters dictionary
+    # add cluster indices to analysis parameters dictionary
     anlys_vcts['cluster_indices'] = cluster_indices
-    anlys_vcts['cluster_ranges'] = cluster_ranges
+    
     
 if 'compressibility_check' in udp.plt_to_generate:
     # ----- initialize analysis variables -----
     anlys_cc = udp.anlys_params_comp_check
     
     if udp.clusters_ml:
-        cluster_indices = find_points_in_cluster(udp. num_clusters, 
+        cluster_indices = find_points_in_clusters_ml(udp.num_clusters, 
                                                              last_frame_df)
+        anlys_cc['ml_clusters'] = True
         
     else:
         # calculate strain range bounds
@@ -237,18 +242,20 @@ if 'compressibility_check' in udp.plt_to_generate:
                                                      anlys_cc['cat_var'], 
                                                      mask_frame_df
                                                      )
+        anlys_cc['cluster_ranges'] = cluster_ranges
+        anlys_cc['ml_clusters'] = False
     
-    # add clusters to analysis parameters dictionary
+    # add cluster indices to analysis parameters dictionary
     anlys_cc['cluster_indices'] = cluster_indices
-    anlys_cc['cluster_ranges'] = cluster_ranges
     
 if 'overlay_pts_on_sample_var' in udp.plt_to_generate:
     # ----- initialize analysis variables -----
     anlys_opsv = udp.anlys_params_pts_overlay_var
     
     if udp.clusters_ml:
-        cluster_indices = find_points_in_clusters_cluster(udp. num_clusters, 
+        cluster_indices = find_points_in_clusters_ml(udp. num_clusters, 
                                                              last_frame_df)
+        anlys_opsv['ml_clusters'] = True
         
     else:
         # calculate strain range bounds
@@ -264,10 +271,12 @@ if 'overlay_pts_on_sample_var' in udp.plt_to_generate:
                                                      anlys_opsv['cat_var'], 
                                                      mask_frame_df
                                                      )
+        anlys_opsv['ml_clusters'] = False
+        anlys_opsv['cluster_ranges'] = cluster_ranges
     
-    # add clusters to analysis parameters dictionary
+    # add cluster indices to analysis parameters dictionary
     anlys_opsv['cluster_indices'] = cluster_indices
-    anlys_opsv['cluster_ranges'] = cluster_ranges
+    
     
 if 'overlay_pts_on_sample_relative' in udp.plt_to_generate:
     # ----- initialize analysis variables -----
@@ -376,7 +385,7 @@ for i in range(udp.plt_frame_range[0],udp.plt_frame_range[1]+1):
     if udp.load_multiple_frames: 
         frame_df = data_df[data_df['frame'] == i]
     else:
-        frame_df = return_frame_dataframe(i, udp.dir_results)
+        frame_df = return_frame_df(i, udp.dir_results)
         frame_df = add_features(frame_df, udp.img_scale, time_mapping, 
                                 udp.orientation)
     # ------------------------------------------------------------------------

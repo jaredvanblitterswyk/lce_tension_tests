@@ -193,8 +193,9 @@ def define_clusters_ml(num_clusters, frame_df, scale_features, cluster_args):
         Xs = scaler.fit_transform(X)
 
     # Bayesian Gaussian mixture model
-    bgm = BayesianGaussianMixture(n_components = num_clusters, random_state = 0, 
+    bgm = BayesianGaussianMixture(n_components = num_clusters, random_state = 1,
                                   **cluster_args)
+    
     if scale_features:
         bgm.fit(Xs)
         y_pred_bgm = bgm.predict(Xs)
