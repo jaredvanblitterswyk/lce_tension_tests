@@ -25,7 +25,7 @@ dir_root = 'Z:/Experiments/lce_tension'
 # extensions to access sub-directories
 batch_ext = 'lcei_003'
 mts_ext = 'mts_data'
-sample_ext = '009_t02_r02'
+sample_ext = '009_t02_r05'
 gom_ext = 'gom_results'
 orientation = 'vertical'
 
@@ -81,32 +81,32 @@ plot_params = {'figsize': (2,4),
                'grid_alpha': 0.5,
                'dpi': 300, 'cmap': custom_map,
                'xlims': [24, 40],
-               'ylims': [0, 45],#m.ceil(Ny*img_scale)],
+               'ylims': [0, 65],#m.ceil(Ny*img_scale)],
                'tight_layout': True, 
                'hide_labels': False, 
                'show_fig': False,
                'save_fig': True
                }   
 plot_var_specific = {'Exx': {
-                'vlims': [-0.08, 0], 'dir_save_figs': dir_strain_folder
+                'vlims': [-0.04, 0], 'dir_save_figs': dir_strain_folder
               },
               'Eyy': {
-                  'vlims': [0, 0.22], 'dir_save_figs': dir_strain_folder
+                  'vlims': [0, 0.15], 'dir_save_figs': dir_strain_folder
               },
               'Exy': {
                   'vlims': [-0.04, 0.04], 'dir_save_figs': dir_strain_folder
               },
               'ux': {
-                  'vlims': [-0.8, 0.8], 'dir_save_figs': dir_disp_folder
+                  'vlims': [-0.5, 0.5], 'dir_save_figs': dir_disp_folder
               },
               'uy': {
                   'vlims': [0, 6], 'dir_save_figs': dir_disp_folder
               },
               'uz': {
-                  'vlims': [-0.4, 0.4], 'dir_save_figs': dir_disp_folder
+                  'vlims': [-0.25, 0.25], 'dir_save_figs': dir_disp_folder
               },
               'R': {
-                  'vlims': [-5, 6], 'dir_save_figs': dir_rotation_folder
+                  'vlims': [-3, 3], 'dir_save_figs': dir_rotation_folder
               },
               'nu': {
                   'vlims': [0, 0.5], 'dir_save_figs': dir_nu_folder

@@ -62,7 +62,7 @@ peak_frame_index = 5 # frame where load is max for normalizing stress/strain rel
 img_scale = 0.02724 # image scale (mm/pix)
 # cluster points using ML
 clusters_ml = True
-num_clusters = 15
+num_clusters = 21
 scale_features = True
 cluster_args = {}
 cluster_args['n_init']: 7 

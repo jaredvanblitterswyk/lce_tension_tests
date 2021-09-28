@@ -32,7 +32,7 @@ dir_root_local = 'C:/Users/jcv/Documents'
 # extensions to access sub-directories
 batch_ext = 'lcei_003'
 mts_ext = 'mts_data'
-sample_ext = '009_t02_r01'
+sample_ext = '009_t02_r05'
 gom_ext = 'gom_results'
 time_map_ext = 'frame_time_mapping'
 
