@@ -62,7 +62,7 @@ peak_frame_index = 5 # frame where load is max for normalizing stress/strain rel
 img_scale = 0.02724 # image scale (mm/pix)
 # cluster points using ML
 clusters_ml = True
-num_clusters = 21
+num_clusters = 15
 scale_features = True
 cluster_args = {}
 cluster_args['n_init']: 7 
@@ -70,6 +70,7 @@ cluster_args['max_iter']: 400
 cluster_args['init_params']: 'random'
 cluster_args['random_state']: 1
 cluster_args['warm_start']: False
+cluster_args['weight_concentration_prior'] = 0.05
 # ----------------------------------------------------------------------------
 # -------- PLOTTING ---------
 # ----------------------------------------------------------------------------

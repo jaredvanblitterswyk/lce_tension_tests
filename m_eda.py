@@ -386,6 +386,7 @@ for i in range(udp.plt_frame_range[0],udp.plt_frame_range[1]+1):
         frame_df = data_df[data_df['frame'] == i]
     else:
         frame_df = return_frame_df(i, udp.dir_results)
+        frame_df.drop(columns = ['de_dy', 'de_dx', 'de_dx2','de_dy2'],inplace = True)
         frame_df = add_features(frame_df, udp.img_scale, time_mapping, 
                                 udp.orientation)
     # ------------------------------------------------------------------------
@@ -547,6 +548,8 @@ for i in range(udp.plt_frame_range[0],udp.plt_frame_range[1]+1):
             # append to list
             cluster_series['y1_'+str(j)].append(y.values[0])
             cluster_series['y2_'+str(j)].append(y2.values[0])
+            
+    del frame_df
                     
 plt.tight_layout()       
 plt.show()

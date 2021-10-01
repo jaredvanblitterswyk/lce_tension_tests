@@ -185,7 +185,7 @@ def define_clusters_ml(num_clusters, frame_df, scale_features, cluster_args):
     '''
     
     # define features (coordinates and strain)
-    X = frame_df[['x_mm', 'y_mm', 'Eyy']]
+    X = frame_df[['x_mm', 'y_mm', 'Eyy', 'Exx']]
 
     # scale features
     if scale_features:

@@ -27,12 +27,12 @@ from func.compute_fields import (compute_R,
 #%% ---- MAIN SCRIPT ----
 # ----- configure directories -----
 # root directory
-dir_root = 'Z:/Experiments/lce_tension'
+dir_root = 'Z:/Experiments/vhbt_tension'
 dir_root_local = 'C:/Users/jcv/Documents'
 # extensions to access sub-directories
-batch_ext = 'lcei_003'
+batch_ext = 'vhbt_001'
 mts_ext = 'mts_data'
-sample_ext = '009_t02_r05'
+sample_ext = '005_t01_r01'
 gom_ext = 'gom_results'
 time_map_ext = 'frame_time_mapping'
 
@@ -48,7 +48,7 @@ except:
 # ----- define constants -----
 spec_id = batch_ext+'_'+sample_ext # full specimen id
 Nx, Ny = 2448, 2048 # pixel resolution in x, y axis
-img_scale = 0.02729 # mm/pix
+img_scale = 0.02747 # mm/pix
 t = 1 # thickness of sample [mm]
 orientation = 'vertical'
 cmap_name = 'lajolla' # custom colormap stored in mpl_styles

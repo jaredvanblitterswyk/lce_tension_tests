@@ -21,11 +21,11 @@ import matplotlib.pyplot as plt
 #%% ---- MAIN SCRIPT ----
 # ----- configure directories -----
 # root directory
-dir_root = 'Z:/Experiments/lce_tension'
+dir_root = 'Z:/Experiments/vhbt_tension'
 # extensions to access sub-directories
-batch_ext = 'lcei_003'
+batch_ext = 'vhbt_001'
 mts_ext = 'mts_data'
-sample_ext = '009_t02_r05'
+sample_ext = '005_t01_r02'
 gom_ext = 'gom_results'
 orientation = 'vertical'
 
@@ -59,7 +59,7 @@ dir_nu_folder = os.path.join(dir_figs_root,'nu_fields')
 # ----- define constants -----
 spec_id = batch_ext+'_'+sample_ext # full specimen id
 Ny, Nx = 2048, 2448 # pixel resolution in x, y axis
-img_scale = 0.02729 # mm/pix
+img_scale = 0.02747 # mm/pix
 t = 1.0 # thickness of sample [mm]
 cmap_name = 'lapaz' # custom colormap stored in mpl_styles
 cbar_levels = 25 # colorbar levels
@@ -80,33 +80,33 @@ plot_params = {'figsize': (2,4),
                'm_size': 0.1, 
                'grid_alpha': 0.5,
                'dpi': 300, 'cmap': custom_map,
-               'xlims': [24, 40],
-               'ylims': [0, 65],#m.ceil(Ny*img_scale)],
+               'xlims': [26, 40],
+               'ylims': [0, 55],#m.ceil(Ny*img_scale)],
                'tight_layout': True, 
                'hide_labels': False, 
                'show_fig': False,
                'save_fig': True
                }   
 plot_var_specific = {'Exx': {
-                'vlims': [-0.04, 0], 'dir_save_figs': dir_strain_folder
+                'vlims': [-0.1, 0], 'dir_save_figs': dir_strain_folder
               },
               'Eyy': {
-                  'vlims': [0, 0.15], 'dir_save_figs': dir_strain_folder
+                  'vlims': [0, 0.3], 'dir_save_figs': dir_strain_folder
               },
               'Exy': {
                   'vlims': [-0.04, 0.04], 'dir_save_figs': dir_strain_folder
               },
               'ux': {
-                  'vlims': [-0.5, 0.5], 'dir_save_figs': dir_disp_folder
+                  'vlims': [-0.3, 0.3], 'dir_save_figs': dir_disp_folder
               },
               'uy': {
-                  'vlims': [0, 6], 'dir_save_figs': dir_disp_folder
+                  'vlims': [0, 8], 'dir_save_figs': dir_disp_folder
               },
               'uz': {
-                  'vlims': [-0.25, 0.25], 'dir_save_figs': dir_disp_folder
+                  'vlims': [-0.1, 0.1], 'dir_save_figs': dir_disp_folder
               },
               'R': {
-                  'vlims': [-3, 3], 'dir_save_figs': dir_rotation_folder
+                  'vlims': [-2, 2], 'dir_save_figs': dir_rotation_folder
               },
               'nu': {
                   'vlims': [0, 0.5], 'dir_save_figs': dir_nu_folder
