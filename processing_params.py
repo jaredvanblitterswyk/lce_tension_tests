@@ -71,6 +71,8 @@ cluster_args['init_params']: 'random'
 cluster_args['random_state']: 1
 cluster_args['warm_start']: False
 cluster_args['weight_concentration_prior'] = 0.05
+collect_clusters_df = True
+clusters_to_collect = [0,4,5,8,9]
 # ----------------------------------------------------------------------------
 # -------- PLOTTING ---------
 # ----------------------------------------------------------------------------
@@ -79,12 +81,10 @@ cluster_args['weight_concentration_prior'] = 0.05
 plt_to_generate = [
                    'boxplot',
                    'histogram',
-                   'global_stress_strain',
                    'var_clusters_vs_time_subplots',
                    'overlay_pts_on_sample_var',
                    'overlay_pts_on_sample_relative',
                    'compressibility_check',
-                   'norm_stress_strain_rates_vs_time',
                    'var_vs_time_clusters_same_axis'
                    ]
 

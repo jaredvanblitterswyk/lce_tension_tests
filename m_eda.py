@@ -37,7 +37,6 @@ Last updated: 28 Sept 2021
 """
 import os
 import sys
-import sys
 sys.path.append('Z:/Python/tension_test_processing')
 sys.path.append(os.path.join(sys.path[-1],'func'))
 import csv
@@ -214,7 +213,14 @@ if 'var_clusters_vs_time_subplots' in udp.plt_to_generate:
                                                      )
         anlys_vcts['cluster_ranges'] = cluster_ranges
         anlys_vcts['ml_clusters'] = False
-    
+        
+    # manually prune points in clusters
+    cluster_df = last_frame_df[(last_frame_df['cluster'] == 5) & 
+                               (last_frame_df['y_mm'] > 22.5)]
+    cluster_indices[5] = cluster_df.index
+    cluster_df = last_frame_df[(last_frame_df['cluster'] == 9) &
+                               (last_frame_df['x_mm'] < 31)]
+    cluster_indices[9] = cluster_df.index
     # add cluster indices to analysis parameters dictionary
     anlys_vcts['cluster_indices'] = cluster_indices
     
@@ -548,6 +554,17 @@ for i in range(udp.plt_frame_range[0],udp.plt_frame_range[1]+1):
             # append to list
             cluster_series['y1_'+str(j)].append(y.values[0])
             cluster_series['y2_'+str(j)].append(y2.values[0])
+            
+    if udp.collect_clusters_df:
+        if i == udp.plt_frame_range[0]:
+            select_clusters_df = pd.DataFrame()
+        for c in udp.clusters_to_collect:
+            cluster_df = frame_df[frame_df.index.isin(
+                anlys_vcts['cluster_indices'][c].values
+                )]
+            cluster_df['cluster'] = c
+            select_clusters_df = pd.concat([select_clusters_df, cluster_df], 
+                axis = 0, join = 'outer')                
             
     del frame_df
                     
