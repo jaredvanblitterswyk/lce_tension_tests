@@ -32,7 +32,7 @@ dir_root_local = 'C:/Users/jcv/Documents'
 # extensions to access sub-directories
 batch_ext = 'vhbt_001'
 mts_ext = 'mts_data'
-sample_ext = '005_t01_r01'
+sample_ext = '005_t01_r00'
 gom_ext = 'gom_results'
 time_map_ext = 'frame_time_mapping'
 
@@ -164,12 +164,12 @@ for i in range(0,len(mts_df)):
         outputs_df[component] = np.reshape(Eij.get(component),(Nxc*Nyc,))
 
     outputs_df['R'] = np.reshape(Rij,(Nxc*Nyc,))
-    outputs_df['de_dy'] = np.reshape(de_dy,(Nxc*Nyc,))
-    outputs_df['de_dx'] = np.reshape(de_dx,(Nxc*Nyc,))
+    #outputs_df['de_dy'] = np.reshape(de_dy,(Nxc*Nyc,))
+    #outputs_df['de_dx'] = np.reshape(de_dx,(Nxc*Nyc,))
     
     # square and take inverse to exaggerate outliers
-    outputs_df['de_dx2'] = outputs_df['de_dx'].apply(lambda x: x**2)
-    outputs_df['de_dy2'] = outputs_df['de_dy'].apply(lambda x: x**2)
+    #outputs_df['de_dx2'] = outputs_df['de_dx'].apply(lambda x: x**2)
+    #outputs_df['de_dy2'] = outputs_df['de_dy'].apply(lambda x: x**2)
     
     # ----- compile results into dataframe -----
     # concatenate to create one output dataframe
