@@ -8,6 +8,8 @@ Created on Wed Mar 24 12:16:39 2021
 
 import os
 import sys
+sys.path.append('Z:/Python/tension_test_processing')
+sys.path.append(os.path.join(sys.path[-1],'func'))
 import csv
 import pandas as pd
 import numpy as np
@@ -25,7 +27,7 @@ dir_root = 'Z:/Experiments/vhbt_tension'
 # extensions to access sub-directories
 batch_ext = 'vhbt_001'
 mts_ext = 'mts_data'
-sample_ext = '005_t01_r02'
+sample_ext = '005_t01_r00'
 gom_ext = 'gom_results'
 orientation = 'vertical'
 
@@ -97,13 +99,13 @@ plot_var_specific = {'Exx': {
                   'vlims': [-0.04, 0.04], 'dir_save_figs': dir_strain_folder
               },
               'ux': {
-                  'vlims': [-0.3, 0.3], 'dir_save_figs': dir_disp_folder
+                  'vlims': [-0.4, 0.4], 'dir_save_figs': dir_disp_folder
               },
               'uy': {
-                  'vlims': [0, 8], 'dir_save_figs': dir_disp_folder
+                  'vlims': [0, 10], 'dir_save_figs': dir_disp_folder
               },
               'uz': {
-                  'vlims': [-0.1, 0.1], 'dir_save_figs': dir_disp_folder
+                  'vlims': [-1, 1], 'dir_save_figs': dir_disp_folder
               },
               'R': {
                   'vlims': [-2, 2], 'dir_save_figs': dir_rotation_folder
