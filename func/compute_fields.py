@@ -256,6 +256,7 @@ def calc_xsection(dir_xsection, filename, img_scale, orientation):
                              encoding='UTF-8')
     # drop unnecessary values
     section_df.drop(columns = 'Value', inplace = True)
+    section_df.Y = section_df.Y.apply(lambda x: np.abs(2048-x))
     if orientation == 'horizontal':
         max_c = section_df.groupby(['X']).max()
         min_c = section_df.groupby(['X']).min()

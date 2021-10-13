@@ -27,12 +27,12 @@ from func.compute_fields import (compute_R,
 #%% ---- MAIN SCRIPT ----
 # ----- configure directories -----
 # root directory
-dir_root = 'Z:/Experiments/vhbt_tension'
+dir_root = 'Z:/Experiments/lce_tension'
 dir_root_local = 'C:/Users/jcv/Documents'
 # extensions to access sub-directories
-batch_ext = 'vhbt_001'
+batch_ext = 'lcei_003'
 mts_ext = 'mts_data'
-sample_ext = '005_t01_r00'
+sample_ext = '009_t02_r0X'
 gom_ext = 'gom_results'
 time_map_ext = 'frame_time_mapping'
 
