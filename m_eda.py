@@ -48,6 +48,7 @@ import matplotlib as mpl
 import matplotlib.pyplot as plt
 import processing_params as udp
 from func.plot_field_contour_save import *
+from kww_relaxation_fit import compute_KWW_parameters
 from func.create_eda_plots import (create_simple_scatter, 
                                    histogram_vs_frame, 
                                    boxplot_vs_frame,
@@ -167,6 +168,7 @@ if udp.clusters_ml:
         'ylims': [0, 32],
         'tight_layout': True, 
         'hide_labels': False, 
+        'cbar': True,
         'show_fig': True,
         'save_fig': False
         }   
@@ -604,3 +606,65 @@ if 'norm_stress_strain_rates_vs_time' in udp.plt_to_generate:
 
     norm_stress_strain_rates_vs_time(anlys_nssrt, plt_nssrt,
                                      udp.plt_frame_range, i, ax_nssrt)
+    
+#%% Compute KWW relaxation for strains in select clusters
+num_samples = 10000
+
+subplot_cols = 3
+subplot_dims = [int(np.floor((len(udp.clusters_to_collect)-1)/subplot_cols)+1),
+                subplot_cols]
+
+df = select_clusters_df.copy()
+df.drop(columns = ['x_pix','y_pix','lambda_y','nu','width_mm',
+                   'area_mm2', 'stress_mpa'], inplace = True)
+
+f, ax = plt.subplots(subplot_dims[0], subplot_dims[1], sharey=True, sharex=True)
+
+i = 0
+for c in udp.clusters_to_collect:
+    if c == 9:
+        df_cluster = df[(df['cluster'] == 9) & (df['x_mm'] < 30.5)]
+    elif c == 5:
+        df_cluster = df[(df['cluster'] == 5) & (df['y_mm'] > 22.5)]
+    else:
+        df_cluster = df[df['cluster'] == c]
+    
+    row = int(i/(subplot_dims[1]))
+    col = i - row*(subplot_dims[1])
+    
+    # plot sample of points from each cluster over time
+    if len(df_cluster) < num_samples:
+        sample_df = df_cluster
+    else:
+        sample_df = df_cluster.sample(n = num_samples, random_state = 1)
+       
+    # compute shifted time for relaxation
+    t0 = sample_df['time'].min()
+    sample_df['time_shift'] = sample_df.time.apply(lambda x: x - t0)
+    sample_df.sort_values(by = ['time_shift'], inplace = True)
+    sample_df.reset_index(inplace = True)
+    
+    # perform KWW fitting
+    fit_range = [1500, int(0.9*len(sample_df))]
+    sample_df, beta0, beta1, tau = compute_KWW_parameters(sample_df, 'Eyy', 'time_shift', -100, fit_range)
+    
+    # reconstruct predicted fitting
+    yhat = beta0*np.ones(sample_df['lnx'].shape) + beta1*sample_df['lnx']
+    
+    ax[row,col].plot(sample_df['lnx'], yhat, linestyle = '--', linewidth = 0.75, 
+        c = 'k', label = 'LR fitting')
+    sample_df.plot.scatter(x = 'lnx', y = 'lnlny', c = '#664656', ax = ax[row,col], 
+                s = 2, alpha = 0.5, label = 'experiment')
+    ax[row,col].grid(True, alpha = 0.5, linestyle = '--', c = '#E0E0E0')
+    ax[row,col].set_xlabel('log(t)')
+    ax[row,col].set_ylabel('log(log(1/R(t)))')
+    ax[row,col].text(5.5, -7, r'$\beta$ = '+str(round(beta1,2)), fontsize=6)
+    ax[row,col].text(5.5, -8, r'$\tau$ = '+str(round(tau,0))+'s', fontsize=6)
+    ax[row,col].legend()
+    ax[row,col].tick_params(labelsize = 6)
+    ax[row,col].set_title('Cluster: '+str(c))
+    
+    i += 1
+    
+plt.savefig('kww_strain_clusters.png', dpi=500, facecolor='w', edgecolor='w',
+        orientation='landscape')    

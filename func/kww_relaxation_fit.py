@@ -26,8 +26,11 @@ def compute_KWW_parameters(df, var_y, var_x, end_idx, fit_range):
     '''
     
     df['var_norm'] = (df[var_y] - df[var_y][end_idx:-1].mean())/(df[var_y].iloc[0] - df[var_y][end_idx:-1].mean())
+    df['var_norm'] = df['var_norm'].apply(lambda x: np.abs(x))
     df['lnlny'] = df['var_norm'].apply(lambda x: np.log(np.log(1/x)))
     df['lnx'] = df[var_x].apply(lambda x: np.log(x))
+    
+    df.dropna(axis = 0, inplace = True)
     
     x = np.reshape(np.array(df['lnx'].iloc[fit_range[0]:fit_range[1]]), (-1,1))
     y = np.reshape(np.array(df['lnlny'].iloc[fit_range[0]:fit_range[1]]), (-1,1))
@@ -46,4 +49,4 @@ def compute_KWW_parameters(df, var_y, var_x, end_idx, fit_range):
     beta1 = beta[1].item()
     tau = np.exp(-beta0/beta1)
     
-    return beta1, tau
+    return df, beta0, beta1, tau

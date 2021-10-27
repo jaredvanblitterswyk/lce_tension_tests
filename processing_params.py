@@ -72,7 +72,7 @@ cluster_args['random_state']: 1
 cluster_args['warm_start']: False
 cluster_args['weight_concentration_prior'] = 0.05
 collect_clusters_df = True
-clusters_to_collect = [0,4,5,8,9]
+clusters_to_collect = [0,4,5,8,9,10]
 # ----------------------------------------------------------------------------
 # -------- PLOTTING ---------
 # ----------------------------------------------------------------------------
