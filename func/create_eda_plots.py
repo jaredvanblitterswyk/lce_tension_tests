@@ -213,26 +213,27 @@ def var_clusters_vs_time_subplots(frame_df, analysis_params, plot_params,
                         )
                 
             # annotate showing mask frame with vertical dashed line
-            _, max_ylim = ax[row,col].get_ylim()
-            if analysis_params['x_var'] == 'time':
-                ax[row,col].axvline(time_mapping[analysis_params['mask_frame']], 
-                                     linestyle = plot_params['linestyle2'], 
-                                     linewidth = plot_params['linewidth2'],
-                                     marker = '')
-                ax[row,col].text(time_mapping[analysis_params['mask_frame']]*1.1, 
-                                  max_ylim*0.8, 
-                                  'Mask frame: {:.0f}'.format(
-                                      time_mapping[analysis_params['mask_frame']]) + 
-                                  ' s', fontsize = plot_params['fontsize2'])
-            else:
-                # add line showning mean of field at each frame
-                ax[row,col].axvline(analysis_params['mask_frame'], 
-                                     linestyle = plot_params['linestyle2'], 
-                                     linewidth = plot_params['linewidth2'], 
-                                     marker = '')
-                ax[row,col].text(analysis_params['mask_frame']*1.1, max_ylim*0.8,
-                              'Mask frame: {:.0f}'.format(mask_frame),
-                              fontsize = plot_params['fontsize2']) 
+            if plot_params.annotate_mask_frame:
+                _, max_ylim = ax[row,col].get_ylim()
+                if analysis_params['x_var'] == 'time':
+                    ax[row,col].axvline(time_mapping[analysis_params['mask_frame']], 
+                                         linestyle = plot_params['linestyle2'], 
+                                         linewidth = plot_params['linewidth2'],
+                                         marker = '')
+                    ax[row,col].text(time_mapping[analysis_params['mask_frame']]*1.1, 
+                                      max_ylim*0.8, 
+                                      'Mask frame: {:.0f}'.format(
+                                          time_mapping[analysis_params['mask_frame']]) + 
+                                      ' s', fontsize = plot_params['fontsize2'])
+                else:
+                    # add line showning mean of field at each frame
+                    ax[row,col].axvline(analysis_params['mask_frame'], 
+                                         linestyle = plot_params['linestyle2'], 
+                                         linewidth = plot_params['linewidth2'], 
+                                         marker = '')
+                    ax[row,col].text(analysis_params['mask_frame']*1.1, max_ylim*0.8,
+                                  'Mask frame: {:.0f}'.format(mask_frame),
+                                  fontsize = plot_params['fontsize2'])
     
     
 def overlay_pts_on_sample(plot_params, reference_df, mask_frame_df, 

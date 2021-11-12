@@ -36,7 +36,7 @@ dir_root = 'Z:/Experiments/lce_tension'
 # extensions to access sub-directories
 batch_ext = 'lcei_003'
 mts_ext = 'mts_data'
-sample_ext = '001_t05_r00'
+sample_ext = '009_t02_r01'
 gom_ext = 'gom_results'
 frame_map_ext = 'frame_time_mapping'
 
@@ -52,11 +52,11 @@ mts_col_dtypes = {'time':'float', 'crosshead':'float', 'load':'float',
 load_multiple_frames = False # True if one wants to load all frames into memory simultaneously
 orientation = 'vertical' # Orientation of pulling axis w.r.t camera
 frame_min = 1 # min frame to plot
-frame_max = 36 # max frame to consider
+frame_max = 35 # max frame to consider
 frame_range = frame_max - frame_min
 #
 frame_rel_min = 5 # start frame for computing relative change between frames
-end_frame = 36 # manually define last frame of test/where all points still in FOV
+end_frame = 35 # manually define last frame of test/where all points still in FOV
 mask_frame = 8 # frame to use to mask points for clustering
 peak_frame_index = 5 # frame where load is max for normalizing stress/strain relax rates
 img_scale = 0.02724 # image scale (mm/pix)
@@ -230,7 +230,8 @@ plt_params_var_clusters_subplots = {
                     'ylabel': 'Eng. Stress (MPa)',
                     'subplot_dims': subplot_dims,
                     'ec': ec,
-                    'c': c
+                    'c': c,
+                    'annotate_mask_frame': False
                     }
   
 anlys_params_var_clusters_subplots = {
