@@ -199,7 +199,7 @@ def interp_and_calc_strains(dir_results, file, processing_params, disp_labels,
     scale = processing_params['image_scale']
     
     # transform GOM coords back to reference configuration
-    if processing_params['coord_trans_applied']:
+    if processing_params['coords_origin_center']:
         X = df['x.1'] - df['displacement_x']
         Y = df['y.1'] - df['displacement_y']
     else:
