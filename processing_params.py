@@ -33,10 +33,11 @@ import os
 from matplotlib.colors import LinearSegmentedColormap
 
 dir_root = 'Z:/Experiments/lce_tension'
+dir_root_local = 'C:/Users/jcv/Documents'
 # extensions to access sub-directories
 batch_ext = 'lcei_003'
 mts_ext = 'mts_data'
-sample_ext = '009_t02_r01'
+sample_ext = '009_t04_r00'
 gom_ext = 'gom_results'
 frame_map_ext = 'frame_time_mapping'
 
@@ -51,15 +52,33 @@ mts_col_dtypes = {'time':'float', 'crosshead':'float', 'load':'float',
 # ----------------------------------------------------------------------------
 load_multiple_frames = False # True if one wants to load all frames into memory simultaneously
 orientation = 'vertical' # Orientation of pulling axis w.r.t camera
-frame_min = 1 # min frame to plot
-frame_max = 35 # max frame to consider
-frame_range = frame_max - frame_min
-#
+
+# flag if coordinates shifted to center of image in GOM (if False, default)
+coords_origin_center = False
+
+# choose to save files locally or to root
+save_file_local = True
+
+# full image and desired cropped image dimensions
+Nx, Ny = 2448, 2048 # pixel resolution in x, y axis
+xc1, xc2 = 850, 1625 # col indices to crop coordinates
+yc1, yc2 = 0, Ny # row indices to crop coordinates
+
+# define relevant frames for analysis
 frame_rel_min = 5 # start frame for computing relative change between frames
 end_frame = 35 # manually define last frame of test/where all points still in FOV
 mask_frame = 8 # frame to use to mask points for clustering
 peak_frame_index = 5 # frame where load is max for normalizing stress/strain relax rates
-img_scale = 0.02724 # image scale (mm/pix)
+frame_min = 1 # min frame to plot
+frame_max = 35 # max frame to consider
+frame_range = frame_max - frame_min
+
+# image scale (mm/pix)
+img_scale = 0.02724
+
+# max side length of triangles in DeLauny triangulation
+mask_side_length = 1 
+
 # cluster points using ML
 clusters_ml = True
 num_clusters = 15
@@ -73,6 +92,10 @@ cluster_args['warm_start']: False
 cluster_args['weight_concentration_prior'] = 0.05
 collect_clusters_df = True
 clusters_to_collect = [0,4,5,8,9,10]
+
+# define which components of displacement and strain to include in results
+disp_labels = ['ux', 'uy', 'uz']
+strain_labels = ['Exx', 'Eyy', 'Exy']
 # ----------------------------------------------------------------------------
 # -------- PLOTTING ---------
 # ----------------------------------------------------------------------------
@@ -101,7 +124,7 @@ all_plot_options = [
                    'var_vs_time_clusters_same_axis'
                    ]
 
-cmap_name = 'lapaz' # custom colormap stored in mpl_styles
+cmap_name = 'lajolla' # custom colormap stored in mpl_styles
 cbar_levels = 25 # colorbar levels
 
 # load in colormap and define plot style
