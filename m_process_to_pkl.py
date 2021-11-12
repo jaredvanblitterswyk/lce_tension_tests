@@ -32,7 +32,7 @@ dir_root_local = 'C:/Users/jcv/Documents'
 # extensions to access sub-directories
 batch_ext = 'lcei_003'
 mts_ext = 'mts_data'
-sample_ext = '009_t02_r0X'
+sample_ext = '009_t04_r00'
 gom_ext = 'gom_results'
 time_map_ext = 'frame_time_mapping'
 
@@ -49,11 +49,13 @@ except:
 spec_id = batch_ext+'_'+sample_ext # full specimen id
 Nx, Ny = 2448, 2048 # pixel resolution in x, y axis
 img_scale = 0.02747 # mm/pix
+xc1, xc2 = 850, 1625 # col indices to crop coordinates
+yc1, yc2 = 0, Ny # row indices to crop coordinates
 t = 1 # thickness of sample [mm]
 orientation = 'vertical'
 cmap_name = 'lajolla' # custom colormap stored in mpl_styles
 xsection_filename = batch_ext+'_'+sample_ext+'_section_coords.csv'
-mask_side_length = 0.5 # max side length of triangles in DeLauny triangulation
+mask_side_length = 1 # max side length of triangles in DeLauny triangulation
 mts_columns = ['time', 'crosshead', 'load', 'trigger', 'cam_44', 'cam_43', 'trig_arduino']
 mts_col_dtypes = {'time':'float',
               'crosshead':'float', 
@@ -64,6 +66,11 @@ mts_col_dtypes = {'time':'float',
               'trig_arduino': 'int64'}
 coord_trans_applied = False
 
+# define which components of displacement and strain to include in results
+disp_labels = ['ux', 'uy', 'uz']
+strain_labels = ['Exx', 'Eyy', 'Exy']
+
+#%% Load data and compute features
 # ---- calculate quantities and collect files to process ---
 # collect all csv files in gom results directory
 files_gom = [f for f in os.listdir(dir_gom_results) if f.endswith('.csv')]
@@ -80,8 +87,7 @@ xx_pix,yy_pix = np.meshgrid(x_vec,y_vec) # matrix of x and y coordinates (pix)
 xx,yy = xx_pix*img_scale, yy_pix*img_scale # matrix of x and y coordinates (mm)
 
 # crop coordinates to contain specimen (reduce interp comp. cost)
-xc1, xc2 = 850, 1625 # col indices to crop coordinates
-yc1, yc2 = 0, Ny # row indices to crop coordinates
+
 Nxc, Nyc = xc2-xc1, yc2-yc1 # dims of cropped coordinates for reshaping
 
 # -- cropped coordinates to interpolate onto ---
@@ -129,9 +135,6 @@ coords_df['y_pix'] = np.reshape(yy_pix_crop,(Nxc*Nyc,))
 
 #%%
 # ---- run processing -----  
-disp_labels = ['ux', 'uy', 'uz']
-strain_labels = ['Exx', 'Eyy', 'Exy']
-
 processing_params = {}
 processing_params['mask_side_length'] = mask_side_length
 processing_params['spacing'] = [dx, dy]
@@ -139,7 +142,7 @@ processing_params['image_scale'] = img_scale
 processing_params['image_dims'] = [Nx, Ny]
 processing_params['coord_trans_applied'] = coord_trans_applied
 
-for i in range(0,len(mts_df)):
+for i in range(181,len(mts_df)):
     start_time = time.time()
     # extract frame number and display
     frame_no = files_gom[i][28:-10] # lcei_001_006_t02_r00
