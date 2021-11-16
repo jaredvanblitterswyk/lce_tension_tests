@@ -17,120 +17,55 @@ import json
 import math as m
 import matplotlib as mpl
 from func.plot_field_contour_save import *
+import processing_params as udp
 from matplotlib.colors import LinearSegmentedColormap
 import matplotlib.pyplot as plt
 
-#%% ---- MAIN SCRIPT ----
-# ----- configure directories -----
-# root directory
-dir_root = 'Z:/Experiments/vhbt_tension'
-# extensions to access sub-directories
-batch_ext = 'vhbt_001'
-mts_ext = 'mts_data'
-sample_ext = '005_t01_r00'
-gom_ext = 'gom_results'
-orientation = 'vertical'
-
-# define full paths to mts and gom data
-dir_gom_results = os.path.join(dir_root,batch_ext,sample_ext,gom_ext)
-
+#%% ---- INITIALIZE DIRECTORIES ----
 # check if figures folder exists, if not, make directory
-if not os.path.exists(os.path.join(dir_gom_results,'figures')):
-    os.makedirs(os.path.join(dir_gom_results,'figures'))
+if not os.path.exists(os.path.join(udp.dir_figs_root)):
+    os.makedirs(os.path.join(udp.dir_figs_root))
 
-# define directory where figures to be saved    
-dir_figs_root = os.path.join(dir_gom_results,'figures')
-
-if not os.path.exists(os.path.join(dir_figs_root,'disp_fields')):
-    os.makedirs(os.path.join(dir_figs_root,'disp_fields'))
+if not os.path.exists(os.path.join(udp.dir_disp_fields)):
+    os.makedirs(os.path.join(udp.dir_disp_fields))
     
-if not os.path.exists(os.path.join(dir_figs_root,'nu_fields')):
-    os.makedirs(os.path.join(dir_figs_root,'nu_fields'))
+if not os.path.exists(os.path.join(udp.dir_nu_fields)):
+    os.makedirs(os.path.join(udp.dir_nu_fields))
     
-if not os.path.exists(os.path.join(dir_figs_root,'strain_fields')):
-    os.makedirs(os.path.join(dir_figs_root,'strain_fields'))
+if not os.path.exists(os.path.join(udp.dir_strain_fields)):
+    os.makedirs(os.path.join(udp.dir_strain_fields))
     
-if not os.path.exists(os.path.join(dir_figs_root,'rotation_fields')):
-    os.makedirs(os.path.join(dir_figs_root,'rotation_fields'))
+if not os.path.exists(os.path.join(udp.dir_rotation_fields)):
+    os.makedirs(os.path.join(udp.dir_rotation_fields))
 
-dir_disp_folder = os.path.join(dir_figs_root,'disp_fields')
-dir_strain_folder = os.path.join(dir_figs_root,'strain_fields')
-dir_rotation_folder = os.path.join(dir_figs_root,'rotation_fields')
-dir_nu_folder = os.path.join(dir_figs_root,'nu_fields')
+#%% ---- GENERATE DIC MAPS FOR SPECIFIED VARIABLE -----
+# load plot style
+plt.style.use(udp.dir_plt_style)
 
-# ----- define constants -----
-spec_id = batch_ext+'_'+sample_ext # full specimen id
-Ny, Nx = 2048, 2448 # pixel resolution in x, y axis
-img_scale = 0.02747 # mm/pix
-t = 1.0 # thickness of sample [mm]
-cmap_name = 'lapaz' # custom colormap stored in mpl_styles
-cbar_levels = 25 # colorbar levels
-
-# load in colormap and define plot style
-cm_data = np.loadtxt('Z:/Python/mpl_styles/'+cmap_name+'.txt')
-custom_map = LinearSegmentedColormap.from_list('custom', np.flipud(cm_data))
-
-plt.style.use('Z:/Python/mpl_styles/stg_plot_style_1.mplstyle')
+# define full specimen id for figure filenames
+spec_id = udp.batch_ext + '_' + udp.sample_ext
 
 # find files ending with .pkl
-files_pkl = [f for f in os.listdir(dir_gom_results) if f.endswith('.pkl')]
+files_pkl = [f for f in os.listdir(udp.dir_gom_results) if f.endswith('.pkl')]
 
-# create dictionary of plot parameters - pass to function
-plot_params = {'figsize': (2,4),
-               'xlabel': 'x (mm)', 
-               'ylabel': 'y (mm)', 
-               'm_size': 0.1, 
-               'grid_alpha': 0.5,
-               'dpi': 300, 'cmap': custom_map,
-               'xlims': [26, 40],
-               'ylims': [0, 55],#m.ceil(Ny*img_scale)],
-               'tight_layout': True, 
-               'hide_labels': False, 
-               'show_fig': False,
-               'save_fig': True
-               }   
-plot_var_specific = {'Exx': {
-                'vlims': [-0.1, 0], 'dir_save_figs': dir_strain_folder
-              },
-              'Eyy': {
-                  'vlims': [0, 0.3], 'dir_save_figs': dir_strain_folder
-              },
-              'Exy': {
-                  'vlims': [-0.04, 0.04], 'dir_save_figs': dir_strain_folder
-              },
-              'ux': {
-                  'vlims': [-0.4, 0.4], 'dir_save_figs': dir_disp_folder
-              },
-              'uy': {
-                  'vlims': [0, 10], 'dir_save_figs': dir_disp_folder
-              },
-              'uz': {
-                  'vlims': [-1, 1], 'dir_save_figs': dir_disp_folder
-              },
-              'R': {
-                  'vlims': [-2, 2], 'dir_save_figs': dir_rotation_folder
-              },
-              'nu': {
-                  'vlims': [0, 0.5], 'dir_save_figs': dir_nu_folder
-              }
-              }
+# load general plot params from processing file
+plot_params = udp.plt_params_fields_general
 
-#%%
 # load in data
-for i in range(0,len(files_pkl)):
+for i in range(udp.plt_map_frame_range[0], udp.plt_map_frame_range[1]):
     print('Processing frame: '+str(i))
     save_filename = 'results_df_frame_'+"{:02d}".format(i)+'.pkl'
-    frame_df = pd.read_pickle(os.path.join(dir_gom_results,save_filename))
+    frame_df = pd.read_pickle(os.path.join(udp.dir_gom_results, save_filename))
            
     # add columns with scaled coordinates
-    frame_df['x_mm'] = frame_df['x_pix']*img_scale + frame_df['ux']
-    frame_df['y_mm'] = frame_df['y_pix']*img_scale + frame_df['uy']
+    frame_df['x_mm'] = frame_df['x_pix']*udp.img_scale + frame_df['ux']
+    frame_df['y_mm'] = frame_df['y_pix']*udp.img_scale + frame_df['uy']
     
     # create in-plane Poisson's ratio feature
     try: 
-        if orientation == 'vertical':
+        if udp.orientation == 'vertical':
             frame_df['nu'] = -1*frame_df['Exx']/frame_df['Eyy']
-        elif orientation == 'horizontal':
+        elif udp.orientation == 'horizontal':
             frame_df['nu'] = -1*frame_df['Eyy']/frame_df['Exx']
     except:
         print('Specimen orientation not recognized/specified.')
@@ -139,7 +74,7 @@ for i in range(0,len(files_pkl)):
 
     plt.close('all')
     print('Plotting fields for frame: '+str(i))
-    for j in ['ux','uy','uz','Exx','Exy','Eyy','R', 'nu']:
+    for j in udp.vars_to_plot_map:
         
         # filter data to plot
         xx = np.array(frame_df[['x_mm']])
@@ -147,39 +82,39 @@ for i in range(0,len(files_pkl)):
         zz = np.array(frame_df[[j]])
         
         # assign variable-specific key:value pairs to plot params dictionary
-        plot_params['vmin'] = plot_var_specific[j]['vlims'][0]
-        plot_params['vmax'] = plot_var_specific[j]['vlims'][1]
+        plot_params['vmin'] = udp.plt_params_var_clims[j]['vlims'][0]
+        plot_params['vmax'] = udp.plt_params_var_clims[j]['vlims'][1]
         plot_params['var_name'] = j
         
         # define full path of image
-        fpath = plot_var_specific[j]['dir_save_figs']+'/'+spec_id+'_'+j+'_'+str(i)+'.tiff'
+        fpath = udp.plt_params_var_clims[j]['dir_save_figs'] + '/' + spec_id \
+            + '_' + j + '_'+str(i) + udp.map_img_type_save
         
         plot_params['fpath'] = fpath
         
         # pass file to function that plots fields to file - lower res to save time initially
-        plot_field_contour_save(xx, yy, zz, plot_params, i)
+        plot_field_contour_save(xx, yy, zz, plot_params, 'Frame: '+ str(i))
 
-#%% 
-# ----- write processing and plot parameters to file -----
+#%% ----- WRITE PROCESSING AND PLOT PARAMETERS TO FILE -----
 # define output path
-output_filename = batch_ext + '_'+ sample_ext + '_plot_config.json'
-out_path = os.path.join(dir_figs_root,output_filename)
+output_filename = spec_id + '_plot_config.json'
+out_path = os.path.join(udp.dir_figs_root, output_filename)
 
 # store output in dictionary
 output = []
 output.append(
     {
      'Plot_parameters': '', 
-     'img_scale': img_scale, 
-     'thickness': t,
-     'plot_style': 'Z:/Python/mpl_styles/'+cmap_name+'.txt'
+     'img_scale': udp.img_scale, 
+     'thickness': udp.thickness,
+     'plot_style': 'Z:/Python/mpl_styles/' + udp.cmap_name+'.txt'
      }
     )
 
 # remove colourmap object
 plot_params.pop('cmap', None)
 output.append(plot_params)
-output.append(plot_var_specific)
+output.append(udp.plt_params_var_clims)
 
 with open(out_path, 'w',  encoding='utf-8') as f:
     json.dump(output, f, indent=2)
