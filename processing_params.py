@@ -22,8 +22,12 @@ Last updated: 27 Sept 2021
 
 """
 # ============================================================================
+# ============================================================================
 # -------------- USER INPUT ----------------
 # ============================================================================
+# ============================================================================
+
+# ----------------------------------------------------------------------------
 # ---------- CONFIGURATION ----------
 # ----------------------------------------------------------------------------
 # import libraries
@@ -34,22 +38,25 @@ from matplotlib.colors import LinearSegmentedColormap
 
 dir_root = 'Z:/Experiments/lce_tension'
 dir_root_local = 'C:/Users/jcv/Documents'
+dir_plt_styles = 'Z:/Python/mpl_styles'
 # extensions to access sub-directories
 batch_ext = 'lcei_003'
 mts_ext = 'mts_data'
-sample_ext = '009_t04_r00'
+sample_ext = '009_t03_r00'
 gom_ext = 'gom_results'
 frame_map_ext = 'frame_time_mapping'
 
+# ----------------------------------------------------------------------------
+# ---------- PROCESSING ----------
+# ----------------------------------------------------------------------------
 # ---------- Columns and data types of mts data ---------- 
 mts_columns = ['time', 'crosshead', 'load', 'trigger', 
                'cam_44', 'cam_43', 'trig_arduino']
 mts_col_dtypes = {'time':'float', 'crosshead':'float', 'load':'float',
               'trigger': 'int64', 'cam_44': 'int64', 'cam_43': 'int64',
               'trig_arduino': 'int64'}
-# ----------------------------------------------------------------------------
-# ---------- PROCESSING ----------
-# ----------------------------------------------------------------------------
+
+
 load_multiple_frames = False # True if one wants to load all frames into memory simultaneously
 orientation = 'vertical' # Orientation of pulling axis w.r.t camera
 
@@ -74,30 +81,93 @@ frame_max = 35 # max frame to consider
 frame_range = frame_max - frame_min
 
 # image scale (mm/pix)
-img_scale = 0.02724
+img_scale = 0.02728
+thickness = 1 # specimen thickness in mm
 
 # max side length of triangles in DeLauny triangulation
 mask_side_length = 1 
 
-# cluster points using ML
-clusters_ml = True
-num_clusters = 15
-scale_features = True
-cluster_args = {}
-cluster_args['n_init']: 7 
-cluster_args['max_iter']: 400
-cluster_args['init_params']: 'random'
-cluster_args['random_state']: 1
-cluster_args['warm_start']: False
-cluster_args['weight_concentration_prior'] = 0.05
-collect_clusters_df = True
-clusters_to_collect = [0,4,5,8,9,10]
-
 # define which components of displacement and strain to include in results
 disp_labels = ['ux', 'uy', 'uz']
 strain_labels = ['Exx', 'Eyy', 'Exy']
+
 # ----------------------------------------------------------------------------
-# -------- PLOTTING ---------
+# ---------- GENERATE FULL-FIELD MAPS ----------
+# ----------------------------------------------------------------------------
+map_img_type_save = '.tiff'
+
+# ---------- Directories of results, plot styles and full-field maps --------
+# gom results directory
+dir_gom_results = os.path.join(dir_root, batch_ext, 
+                              sample_ext, gom_ext)
+
+dir_plt_style = os.path.join(dir_plt_styles,'stg_plot_style_1.mplstyle')
+
+# top level directory for DIC maps    
+dir_figs_root = os.path.join(dir_gom_results,'figures')
+dir_disp_fields = os.path.join(dir_figs_root,'disp_fields')
+dir_strain_fields = os.path.join(dir_figs_root,'strain_fields')
+dir_rotation_fields = os.path.join(dir_figs_root,'rotation_fields')
+dir_nu_fields = os.path.join(dir_figs_root,'nu_fields')
+
+# define which frames and components to plot when generating full-field maps
+plt_map_frame_range = [35,36]
+vars_to_plot_map = ['ux','uy','uz','Exx','Exy','Eyy','R', 'nu']
+
+cmap_name = 'lapaz' # custom colormap stored in mpl_styles
+cbar_levels = 25 # colorbar levels
+
+# load in colormap and define plot style
+cm_data = np.loadtxt(os.path.join(dir_plt_styles, cmap_name + '.txt'))
+custom_map = LinearSegmentedColormap.from_list('custom', np.flipud(cm_data))
+
+# general plot parameters
+plt_params_fields_general = {
+    'figsize': (1.7,4),
+    'xlabel': 'x (mm)', 
+    'ylabel': 'y (mm)', 
+    'm_size': 0.1, 
+    'grid_alpha': 0.5,
+    'dpi': 300, 'cmap': custom_map,
+    'xlims': [28, 40],
+    'ylims': [0, 65],
+    'tight_layout': True, 
+    'hide_labels': False, 
+    'show_fig': False,
+    'save_fig': True,
+    'cbar': True
+    }
+
+# variable specific colourbar limits
+plt_params_var_clims = {
+    'Exx': {
+        'vlims': [-0.08, 0], 'dir_save_figs': dir_strain_fields
+        },
+    'Eyy': {
+        'vlims': [0, 0.2], 'dir_save_figs': dir_strain_fields
+        },
+    'Exy': {
+        'vlims': [-0.02, 0.02], 'dir_save_figs': dir_strain_fields
+        },
+    'ux': {
+        'vlims': [-0.6, 0.6], 'dir_save_figs': dir_disp_fields
+        },
+    'uy': {
+        'vlims': [0, 4], 'dir_save_figs': dir_disp_fields
+        },
+    'uz': {
+        'vlims': [-1, 1], 'dir_save_figs': dir_disp_fields
+        },
+    'R': {
+        'vlims': [-5, 5], 'dir_save_figs': dir_rotation_fields
+        },
+    'nu': {
+        'vlims': [0, 0.5], 'dir_save_figs': dir_nu_fields
+        }
+    }
+
+# ----------------------------------------------------------------------------
+# -------- EXPLORATORY DATA ANALYSIS PLOTS ---------
 # ----------------------------------------------------------------------------
 # -------- Specify which plots to generate ----------
 # NOTE: 'all plot options' only for reference and not called in main script
@@ -123,13 +193,6 @@ all_plot_options = [
                    'norm_stress_strain_rates_vs_time',
                    'var_vs_time_clusters_same_axis'
                    ]
-
-cmap_name = 'lajolla' # custom colormap stored in mpl_styles
-cbar_levels = 25 # colorbar levels
-
-# load in colormap and define plot style
-cm_data = np.loadtxt('Z:/Python/mpl_styles/'+cmap_name+'.txt')
-custom_map = LinearSegmentedColormap.from_list('custom', np.flipud(cm_data))
 
 # ----- Set general plot parameters imported to all plot functions -----
 # NOTE: can override for select plots using additional plot param dictionaries
@@ -179,22 +242,33 @@ edge_colors = ['#110163', '#100a5c', '#0b0b63', '#0c1570', '#112073', '#112a85',
                '#b5a677', '#c4a26c', '#d1a87b', '#deb187', '#ebad81', '#f2b591',
                '#faa987', '#fa9e82']
 
-idx = np.round(np.linspace(0, len(colors) - 1, num_clusters)).astype(int)
-
-ec = np.array(edge_colors)[idx]
-c = np.array(colors)[idx]
-
 ec2 = ['#917265', '#564e5c']
 c2 = ['#d1c3bd', '#706677']
 ec1 = ['#564e5c']
 c1 = ['#706677']
 
-# define custom plot style
-plt.style.use('Z:/Python/mpl_styles/stg_plot_style_1.mplstyle')
+# ----- clustering parameters -----
+clusters_ml = True
+num_clusters = 15
+scale_features = True
+cluster_args = {}
+cluster_args['n_init']: 7 
+cluster_args['max_iter']: 400
+cluster_args['init_params']: 'random'
+cluster_args['random_state']: 1
+cluster_args['warm_start']: False
+cluster_args['weight_concentration_prior'] = 0.05
+collect_clusters_df = True
+clusters_to_collect = [0,4,5,8,9,10]
 
-# ----------------------------------------------------------
-# ---------- PLOT SPECIFIC PARAMETERS ----------
-# ----------------------------------------------------------
+idx = np.round(np.linspace(0, len(colors) - 1, num_clusters)).astype(int)
+
+ec = np.array(edge_colors)[idx]
+c = np.array(colors)[idx]
+
+# ----------------------------------------------------------------------------
+# ----- EDA PLOT-SPECIFIC PARAMETERS -----
+# ------------
 # ----------------------------------------------------------------------------
 # ----- HISTOGRAM -----
 # ----------------------------------------------------------------------------
@@ -385,7 +459,11 @@ anlys_params_norm_ss_rates_vs_time = {
                     'peak_frame_index': peak_frame_index}
 
 # ============================================================================
-# -------------- CALCULATED INPUTS (DO NOT MODIFY) ----------------
+# ============================================================================
+
+
+# ============================================================================
+# -------------- EDA CALCULATED INPUTS (DO NOT MODIFY) ----------------
 # ============================================================================
 # define full paths to mts and gom data
 dir_frame_map = os.path.join(dir_root,batch_ext,mts_ext,batch_ext+'_'+sample_ext,frame_map_ext)
