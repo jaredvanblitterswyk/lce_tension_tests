@@ -30,12 +30,15 @@ from func.compute_fields import (compute_R,
 # define full paths to mts and gom data
 try:
     dir_xsection = os.path.join(udp.dir_root, udp.batch_ext, udp.sample_ext)
-    dir_mts = os.path.join(dir_root,batch_ext,mts_ext,batch_ext+'_'+sample_ext)
+    dir_mts = os.path.join(udp.dir_root, udp.batch_ext,
+                           udp.mts_ext, 
+                           udp.batch_ext + '_' + udp.sample_ext)
     dir_gom_results = os.path.join(dir_xsection, udp.gom_ext)
-    dir_frame_map = os.path.join(dir_mts, udp.time_map_ext)
+    dir_frame_map = os.path.join(dir_mts, udp.frame_map_ext)
 except:
     print('One of setup directories does not exist.')
 
+xsection_filename = udp.batch_ext + '_' + udp.sample_ext + '_section_coords.csv'
 #%% ----- LOAD DATA AND COMPUTE FEATURES -----
 # ---- calculate quantities and collect files to process ---
 # collect all csv files in gom results directory
@@ -69,7 +72,7 @@ dx, dy = udp.img_scale, udp.img_scale
 # calculate width of specimen at each pixel location
 try:
     width_mm = calc_xsection(
-        dir_xsection, xsection_filename, img_scale, orientation
+        dir_xsection, xsection_filename, udp.img_scale, udp.orientation
         )
 except: 
     print('No file containing cross-section coordinates found.')
@@ -85,11 +88,11 @@ try:
             mts_df = pd.DataFrame(columns = ['crosshead', 'load'])
         
         mts_df = extract_load_at_images(mts_df, dir_mts, current_file,
-                                        mts_col_dtypes, mts_columns, 
+                                        udp.mts_col_dtypes, udp.mts_columns, 
                                         keep_frames
                                         )
     # reset index
-    mts_df.reset_index(drop=True, inplace = True)
+    mts_df.reset_index(drop = True, inplace = True)
     
 except:
     print('No file containing mts measurements found.')
@@ -125,16 +128,14 @@ for i in range(0,len(mts_df)):
     # assemble results in data frame
     outputs_df = pd.DataFrame()
     # displacement components
-    for component in disp_labels:
-        outputs_df[component] = np.reshape(disp.get(component),
-                                           (udp.Nxc*udp.Nyc,))
+    for component in udp.disp_labels:
+        outputs_df[component] = np.reshape(disp.get(component), (Nxc*Nyc,))
     
     # strain components
-    for component in strain_labels:
-        outputs_df[component] = np.reshape(Eij.get(component),
-                                           (udp.Nxc*udp.Nyc,))
+    for component in udp.strain_labels:
+        outputs_df[component] = np.reshape(Eij.get(component), (Nxc*Nyc,))
 
-    outputs_df['R'] = np.reshape(Rij,(udp.Nxc*udp.Nyc,))
+    outputs_df['R'] = np.reshape(Rij,(Nxc*Nyc,))
     
     # ----- compile results into dataframe -----
     # concatenate to create one output dataframe
@@ -144,7 +145,7 @@ for i in range(0,len(mts_df)):
     
     # add cross section width, area and stress features
     try:
-        if orientation == 'horizontal':
+        if udp.orientation == 'horizontal':
             results_df['width_mm'] = results_df['x_pix'].apply(
                 lambda x: width_mm.loc[x][0] if x in width_mm.index else np.nan
                 )
@@ -153,7 +154,7 @@ for i in range(0,len(mts_df)):
                 lambda x: width_mm.loc[x][0] if x in width_mm.index else np.nan
                 )    
         # assign cross-section area
-        results_df['area_mm2'] = results_df['width_mm'].apply(lambda x: x*t)
+        results_df['area_mm2'] = results_df['width_mm'].apply(lambda x: x*udp.thickness)
         # assign width-averaged stress
         results_df['stress_mpa'] = mts_df.iloc[int(frame_no),1] / results_df['area_mm2']
     except: 
@@ -167,8 +168,8 @@ for i in range(0,len(mts_df)):
     
     # save results dataframe to pkl file
     if udp.save_file_local:
-        results_df.to_pickle(os.path.join(dir_root_local,save_filename))
+        results_df.to_pickle(os.path.join(udp.dir_root_local ,save_filename))
     else:
-        results_df.to_pickle(os.path.join(dir_root,save_filename))
+        results_df.to_pickle(os.path.join(udp.dir_root, save_filename))
         
     print("--- %s seconds ---" % (time.time() - start_time))
