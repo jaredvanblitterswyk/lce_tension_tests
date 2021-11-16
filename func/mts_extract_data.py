@@ -28,7 +28,7 @@ def extract_mts_data(file_path, files, col_dtypes, columns):
     return cam_trig_df
 
 def extract_load_at_images(mts_df, file_path, current_file, col_dtypes, 
-                           columns, keep_frames):
+                           columns, keep_frames, data_filter, skip_rows):
     '''Extract load at images and append to mts dataframe (if created)
     
     Args: 
@@ -38,14 +38,17 @@ def extract_load_at_images(mts_df, file_path, current_file, col_dtypes,
         col_dtypes (list):  list of data types for columns of mts_df
         columns (list): list of column names
         keep_frames (dataframe): dataframe of frame-time mapping to keep
+        data_filter (bool): flag to control if data filtered on 'trigger' (True)
+            or on 'cam44' only (False)
+        skiprows (int): number of rows to skip when loading mts csv
             
     Returns:
         mts_df (dataframe): dataframe of mts data with current frame appended
     '''
     
     # import csv file
-    mts_raw_df = pd.read_csv(os.path.join(file_path,current_file),skiprows = 5,
-                         header = 1)
+    mts_raw_df = pd.read_csv(os.path.join(file_path,current_file),
+                             skiprows = skip_rows, header = 1)
     # set dataframe columns
     mts_raw_df.columns = columns
     # drop index with units
@@ -53,11 +56,18 @@ def extract_load_at_images(mts_df, file_path, current_file, col_dtypes,
     # set to numeric dtype
     mts_raw_df = mts_raw_df.astype(col_dtypes)
     
-    # filter based on trigger value and drop unneeded columns
-    cam_trig_df = mts_raw_df[mts_raw_df['trigger'] > 0].drop(['time','trigger',
-                                                      'cam_44','cam_43',
-                                                      'trig_arduino'],
-                                                     axis = 1)
+    if data_filter:
+        # filter based on trigger value
+        cam_trig_df_full = mts_raw_df[mts_raw_df['trigger'] > 0] 
+    else:
+        # filter based on cam 44 only
+        cam_trig_df_full = mts_raw_df[(mts_raw_df['trigger'] < 1) &
+                                      (mts_raw_df['cam_44'] > 0)]
+        
+    # drop unneeded columns
+    cam_trig_df = cam_trig_df_full.drop(['time', 'trigger', 'cam_44',
+                                         'cam_43', 'trig_arduino'], 
+                                        axis = 1)
     # reset index to match image capture number
     cam_trig_df.reset_index(inplace=True, drop = True)
     

@@ -89,7 +89,8 @@ try:
         
         mts_df = extract_load_at_images(mts_df, dir_mts, current_file,
                                         udp.mts_col_dtypes, udp.mts_columns, 
-                                        keep_frames
+                                        keep_frames, udp.mts_data_filter_trig,
+                                        udp.mts_skip_rows
                                         )
     # reset index
     mts_df.reset_index(drop = True, inplace = True)

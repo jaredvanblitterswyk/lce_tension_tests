@@ -55,7 +55,10 @@ mts_columns = ['time', 'crosshead', 'load', 'trigger',
 mts_col_dtypes = {'time':'float', 'crosshead':'float', 'load':'float',
               'trigger': 'int64', 'cam_44': 'int64', 'cam_43': 'int64',
               'trig_arduino': 'int64'}
-
+mts_data_filter_trig = False # if True, filters only on 'trigger' column, otherwise on cam 44 only
+# cam 44 trigger seems to be more reliable for quasi-static tests with single
+# capture frequency (might be issue with Arduino script but included as workaround)
+mts_skip_rows = 1 # number of rows to skip when loading in mts csv file
 
 load_multiple_frames = False # True if one wants to load all frames into memory simultaneously
 orientation = 'vertical' # Orientation of pulling axis w.r.t camera
