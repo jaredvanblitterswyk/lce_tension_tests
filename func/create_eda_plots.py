@@ -183,8 +183,9 @@ def var_clusters_vs_time_subplots(frame_df, analysis_params, plot_params,
             ax[row,col].set_xlim(plot_params['xlims'])
             ax[row,col].set_ylabel(analysis_params['y_var'], 
                                     fontsize = plot_params['fontsize'])
-            ax[row,col].set_xlabel(analysis_params['x_var'], 
-                                    fontsize = plot_params['fontsize'])
+            if j >= analysis_params['num_clusters'] - plot_params['subplot_dims'][1]:
+                ax[row,col].set_xlabel(analysis_params['x_var'], 
+                                        fontsize = plot_params['fontsize'])
             ax[row,col].tick_params(labelsize = plot_params['fontsize'])
             ax[row,col].grid(True, alpha = plot_params['grid_alpha'], zorder = 0) 
             if plot_params['log_x']:
@@ -213,7 +214,7 @@ def var_clusters_vs_time_subplots(frame_df, analysis_params, plot_params,
                         )
                 
             # annotate showing mask frame with vertical dashed line
-            if plot_params.annotate_mask_frame:
+            if plot_params['annotate_mask_frame']:
                 _, max_ylim = ax[row,col].get_ylim()
                 if analysis_params['x_var'] == 'time':
                     ax[row,col].axvline(time_mapping[analysis_params['mask_frame']], 

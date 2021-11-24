@@ -23,7 +23,7 @@ def plot_field_contour_manuscript(xx, yy, zz, plot_params, title = None):
     Returns:
         Figure
     '''
-    v1 = np.linspace(plot_params['vmin'], plot_params['vmax'], 7, endpoint=True)   
+    v1 = np.linspace(plot_params['vmin'], plot_params['vmax'], 10, endpoint=True)   
     
     # toggle interactive mode
     if not plot_params['show_fig']:
@@ -53,7 +53,7 @@ def plot_field_contour_manuscript(xx, yy, zz, plot_params, title = None):
     if plot_params['cbar']:
         cbar = f.colorbar(cf, ticks=v1)
         cbar.ax.set_ylabel(plot_params['var_name'])
-        cbar.ax.set_yticklabels(["{:2.2f}".format(i) for i in v1])
+        cbar.ax.set_yticklabels(["{:2.0f}".format(i) for i in v1])
 
     # show grid but hide labels
     if plot_params['hide_labels']:

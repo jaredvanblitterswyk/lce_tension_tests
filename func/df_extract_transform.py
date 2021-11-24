@@ -202,6 +202,8 @@ def define_clusters_ml(num_clusters, frame_df, scale_features, cluster_args):
     else:
         bgm.fit(X)
         y_pred_bgm = bgm.predict(X)
+        
+    print(bgm.weights_)
 
     # append cluster number to dataframe
     frame_df['cluster'] = y_pred_bgm

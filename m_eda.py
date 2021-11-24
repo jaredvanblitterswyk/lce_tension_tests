@@ -40,8 +40,6 @@ import sys
 sys.path.append('Z:/Python/tension_test_processing')
 sys.path.append(os.path.join(sys.path[-1],'func'))
 import csv
-import findspark
-import pyspark
 import pandas as pd
 import numpy as np
 import matplotlib as mpl
@@ -67,7 +65,7 @@ from func.df_extract_transform import (add_features,
 from func.mts_extract_data import extract_mts_data
 
 #%% ----- MAIN SCRIPT -----
-plt.style.use('Z:/Python/mpl_styles/stg_plot_style_1.mplstyle')
+plt.style.use(udp.dir_plt_style)
 plt.close('all')
 #%% ----- LOAD DATA -----
 # ----------------------------------------------------------------------------
@@ -165,7 +163,7 @@ if udp.clusters_ml:
         'grid_alpha': 0.5,
         'dpi': 300, 'cmap': udp.custom_map,
         'xlims': [24, 40],
-        'ylims': [0, 32],
+        'ylims': [0, 55],
         'tight_layout': True, 
         'hide_labels': False, 
         'cbar': True,
@@ -217,12 +215,14 @@ if 'var_clusters_vs_time_subplots' in udp.plt_to_generate:
         anlys_vcts['ml_clusters'] = False
         
     # manually prune points in clusters
+    '''
     cluster_df = last_frame_df[(last_frame_df['cluster'] == 5) & 
                                (last_frame_df['y_mm'] > 22.5)]
     cluster_indices[5] = cluster_df.index
     cluster_df = last_frame_df[(last_frame_df['cluster'] == 9) &
                                (last_frame_df['x_mm'] < 31)]
     cluster_indices[9] = cluster_df.index
+    '''
     # add cluster indices to analysis parameters dictionary
     anlys_vcts['cluster_indices'] = cluster_indices
     
@@ -475,7 +475,7 @@ for i in range(udp.plt_frame_range[0],udp.plt_frame_range[1]+1):
             fig_vcts, ax_vcts = plt.subplots(plt_vcts['subplot_dims'][0], 
                                      plt_vcts['subplot_dims'][1], 
                                      figsize = plt_vcts['figsize'], 
-                                     sharey=True)
+                                     sharey = True)
         
         # collect field average quantities for comparison
         field_avg_var.append(frame_df[anlys_vcts['y_var']].mean())
@@ -566,12 +566,64 @@ for i in range(udp.plt_frame_range[0],udp.plt_frame_range[1]+1):
                 )]
             cluster_df['cluster'] = c
             select_clusters_df = pd.concat([select_clusters_df, cluster_df], 
-                axis = 0, join = 'outer')                
+                axis = 0, join = 'outer')
+
+    if udp.collect_clusters_stats_df:
+        if i == udp.plt_frame_range[0]:
+            stats_clusters_mean_df = pd.DataFrame(columns = list(range(udp.num_clusters)))
+            stats_clusters_stdev_df = pd.DataFrame(columns = list(range(udp.num_clusters)))
+            
+        stats_mean_clusters = []
+        stats_stdev_clusters = []    
+        for c in range(udp.num_clusters):
+            cluster_df = frame_df[frame_df.index.isin(
+                anlys_vcts['cluster_indices'][c].values
+                )]
+            cluster_mean = cluster_df.Eyy.mean()
+            cluster_stdev = cluster_df.Eyy.std()
+            stats_mean_clusters.append(cluster_mean)
+            stats_stdev_clusters.append(cluster_stdev) 
+
+        # convert to series and append to dataframe
+        mean_series = pd.Series(stats_mean_clusters, 
+                                index = stats_clusters_mean_df.columns)   
+        stdev_series = pd.Series(stats_stdev_clusters, 
+                                index = stats_clusters_stdev_df.columns)   
+        stats_clusters_mean_df = stats_clusters_mean_df.append(mean_series, 
+                                                               ignore_index = True)
+        stats_clusters_stdev_df = stats_clusters_stdev_df.append(stdev_series, 
+                                                                 ignore_index = True)             
             
     del frame_df
                     
 plt.tight_layout()       
 plt.show()
+
+# compute cluster statistics for thresholding 'coherent clusters'
+norm_stdev = stats_clusters_stdev_df/stats_clusters_mean_df
+median_norm_stdev = norm_stdev.median()
+mean_norm_stdev = norm_stdev.iloc[1:,:].mean()
+
+# plot quick heatmap of normalized variance
+import seaborn as sns
+f = plt.figure()
+sns.heatmap(norm_stdev.iloc[1:,:])
+
+fs = 7
+mm = 1/25.4
+root_figs = 'Z:/Publications/lce_relaxation/figures'
+fig_name = 'lcei_003_009_t02_r02_cluster_norm_var_barh.png'
+fig_path = os.path.join(root_figs, fig_name)
+f = plt.figure(figsize = (84*mm, 50*mm), dpi = 500)
+ax = f.add_subplot(111)
+f.subplots_adjust(left=0.12, right=0.98, top=0.94, bottom=0.16)
+median_norm_stdev.plot.barh(color = udp.ec[0], ax = ax, grid = True, linestyle = '--')
+ax.set_xlabel('Normalized std. dev.', fontsize = fs)
+ax.set_ylabel('Cluster #', fontsize = fs)
+f.savefig(fig_path, dpi=1000, facecolor='w', edgecolor='w')
+
+# boolean threshold where normalized st dev is less than threshold
+clusters_threshold = list(median_norm_stdev[median_norm_stdev < udp.cluster_threshold].index)
 
 # ----------------------------------------------------------------------------
 # ----- plot figures that don't require iteratively loading -----
@@ -611,23 +663,20 @@ if 'norm_stress_strain_rates_vs_time' in udp.plt_to_generate:
 num_samples = 10000
 
 subplot_cols = 3
-subplot_dims = [int(np.floor((len(udp.clusters_to_collect)-1)/subplot_cols)+1),
+subplot_dims = [int(np.floor((len(clusters_threshold)-1)/subplot_cols)+1),
                 subplot_cols]
 
 df = select_clusters_df.copy()
 df.drop(columns = ['x_pix','y_pix','lambda_y','nu','width_mm',
                    'area_mm2', 'stress_mpa'], inplace = True)
 
+fit_range = [int(0.2*(udp.plt_frame_range[1]+1)), int(0.9*(udp.plt_frame_range[1]+1))]
+
 f, ax = plt.subplots(subplot_dims[0], subplot_dims[1], sharey=True, sharex=True)
 
 i = 0
-for c in udp.clusters_to_collect:
-    if c == 9:
-        df_cluster = df[(df['cluster'] == 9) & (df['x_mm'] < 30.5)]
-    elif c == 5:
-        df_cluster = df[(df['cluster'] == 5) & (df['y_mm'] > 22.5)]
-    else:
-        df_cluster = df[df['cluster'] == c]
+for c in clusters_threshold:
+    df_cluster = df[df['cluster'] == c]
     
     row = int(i/(subplot_dims[1]))
     col = i - row*(subplot_dims[1])
@@ -639,32 +688,46 @@ for c in udp.clusters_to_collect:
         sample_df = df_cluster.sample(n = num_samples, random_state = 1)
        
     # compute shifted time for relaxation
-    t0 = sample_df['time'].min()
+    crop_df = sample_df[sample_df.time > 6]
+    t0 = crop_df['time'].min()
     sample_df['time_shift'] = sample_df.time.apply(lambda x: x - t0)
     sample_df.sort_values(by = ['time_shift'], inplace = True)
-    sample_df.reset_index(inplace = True)
+    sample_group = sample_df.groupby('time').mean()
+    sample_group.reset_index(inplace = True)
+
+    sample_group['var_norm'] = (sample_group['Eyy'] - sample_group['Eyy'].iloc[-1])/(sample_group['Eyy'].iloc[5] - sample_group['Eyy'].iloc[-1])
+    sample_group['lnlny'] = sample_group['var_norm'].apply(lambda x: np.log(np.log(1/x)) if x != 0 else np.nan) 
+    sample_group['lnx'] = sample_group['time_shift'].apply(lambda x: np.log(x))
+    
+    sample_group.dropna(axis = 0, inplace = True)
     
     # perform KWW fitting
-    fit_range = [1500, int(0.9*len(sample_df))]
-    sample_df, beta0, beta1, tau = compute_KWW_parameters(sample_df, 'Eyy', 'time_shift', -100, fit_range)
+    beta0, beta1, tau = compute_KWW_parameters(sample_group, fit_range)
     
     # reconstruct predicted fitting
-    yhat = beta0*np.ones(sample_df['lnx'].shape) + beta1*sample_df['lnx']
+    yhat = beta0*np.ones(sample_group['lnx'].shape) + beta1*sample_group['lnx']
     
-    ax[row,col].plot(sample_df['lnx'], yhat, linestyle = '--', linewidth = 0.75, 
+    ax[row,col].plot(sample_group['lnx'], yhat, linestyle = '--', linewidth = 0.75, 
         c = 'k', label = 'LR fitting')
-    sample_df.plot.scatter(x = 'lnx', y = 'lnlny', c = '#664656', ax = ax[row,col], 
-                s = 2, alpha = 0.5, label = 'experiment')
+    sample_group.plot.scatter(x = 'lnx', y = 'lnlny', c = '#0b378f', ax = ax[row,col], 
+                s = 2, label = 'experiment')
     ax[row,col].grid(True, alpha = 0.5, linestyle = '--', c = '#E0E0E0')
     ax[row,col].set_xlabel('log(t)')
     ax[row,col].set_ylabel('log(log(1/R(t)))')
-    ax[row,col].text(5.5, -7, r'$\beta$ = '+str(round(beta1,2)), fontsize=6)
-    ax[row,col].text(5.5, -8, r'$\tau$ = '+str(round(tau,0))+'s', fontsize=6)
-    ax[row,col].legend()
+    ax[row,col].text(1, 3, r'$\beta$ = '+str(round(beta1,2)), fontsize=6)
+    ax[row,col].text(1, 0.5, r'$\tau$ = '+str(round(tau,0))+' s', fontsize=6)
+    ax[row,col].legend().set_visible(False)
     ax[row,col].tick_params(labelsize = 6)
     ax[row,col].set_title('Cluster: '+str(c))
+    ax[row,col].set_ylim([-8,5])
+    
+    print('Cluster: {}'.format(c))
+    print('Beta: {}'.format(beta1))
+    print('Tau: {}'.format(tau))
+    print('------')
     
     i += 1
+    del df_cluster, sample_group, sample_df
     
 plt.savefig('kww_strain_clusters.png', dpi=500, facecolor='w', edgecolor='w',
         orientation='landscape')    

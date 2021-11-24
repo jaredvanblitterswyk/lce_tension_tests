@@ -42,7 +42,7 @@ dir_plt_styles = 'Z:/Python/mpl_styles'
 # extensions to access sub-directories
 batch_ext = 'lcei_003'
 mts_ext = 'mts_data'
-sample_ext = '009_t03_r00'
+sample_ext = '009_t02_r01'
 gom_ext = 'gom_results'
 frame_map_ext = 'frame_time_mapping'
 
@@ -84,7 +84,7 @@ frame_max = 35 # max frame to consider
 frame_range = frame_max - frame_min
 
 # image scale (mm/pix)
-img_scale = 0.02728
+img_scale = 0.0274
 thickness = 1 # specimen thickness in mm
 
 # max side length of triangles in DeLauny triangulation
@@ -252,7 +252,7 @@ c1 = ['#706677']
 
 # ----- clustering parameters -----
 clusters_ml = True
-num_clusters = 15
+num_clusters = 20
 scale_features = True
 cluster_args = {}
 cluster_args['n_init']: 7 
@@ -262,7 +262,9 @@ cluster_args['random_state']: 1
 cluster_args['warm_start']: False
 cluster_args['weight_concentration_prior'] = 0.05
 collect_clusters_df = True
-clusters_to_collect = [0,4,5,8,9,10]
+collect_clusters_stats_df = True # collect cluster stats to eval variance
+clusters_to_collect = [0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18]
+cluster_threshold = 0.05
 
 idx = np.round(np.linspace(0, len(colors) - 1, num_clusters)).astype(int)
 
@@ -321,7 +323,7 @@ anlys_params_glob_ss = {
 # ----------------------------------------------------------------------------
 # ----- VAR_CLUSTERS_VS_TIME_SUBPLOTS -----
 # ----------------------------------------------------------------------------
-subplot_cols = 3
+subplot_cols = 4
 subplot_dims = [int(np.floor((num_clusters-1)/subplot_cols)+1), subplot_cols]
         
 plt_params_var_clusters_subplots = {
